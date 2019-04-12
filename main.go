@@ -1,44 +1,52 @@
 package main
 
 import (
-	"fmt"
+	"flag"
+	"log"
 	"math/rand"
-	"time"
+	"net/http"
 )
 
 const height int = 400
 const width int = 300
 
-// Field represents a pixel of the arena
-type Field struct {
-	isUsed bool
-}
+var addr = flag.String("addr", "localhost:8080", "http service address")
 
-// Board is a model of the arena
-type Board struct {
-	fields [][]Field
-}
-
-func initBoard(height, width int) *Board {
-	var fields = make([][]Field, height)
-	for i := 0; i < height; i++ {
-		fields[i] = make([]Field, width)
-		for j := 0; j < width; j++ {
-			fields[i][j] = Field{isUsed: false}
-		}
+func serveHome(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.URL)
+	if r.URL.Path != "/" {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
 	}
-	return &Board{fields: fields}
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	http.ServeFile(w, r, "home.html")
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < 2; i++ {
-		fmt.Printf("Player%d's staring rotation is:%d\n", i, getStartRotation())
-	}
-	var board = initBoard(height, width)
-	board.fields[30][50].isUsed = true
+	// rand.Seed(time.Now().UnixNano())
+	// for i := 0; i < 2; i++ {
+	// 	fmt.Printf("Player%d's staring rotation is:%d\n", i, getStartRotation())
+	// }
+	// board := initBoard(height, width)
+	// board.fields[30][50].isUsed = true
 
-	fmt.Printf("This is the value of the 30th row and 50th column: %+v\n", &board.fields[30][50])
+	// fmt.Printf("This is the value of the 30th row and 50th column: %+v\n", &board.fields[30][50])
+
+	flag.Parse()
+	game := newGame()
+	go game.run()
+
+	http.HandleFunc("/", serveHome)
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		connect(game, w, r)
+	})
+	err := http.ListenAndServe(*addr, nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
 }
 
 func getStartRotation() int {
