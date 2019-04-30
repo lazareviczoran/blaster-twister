@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 	"net/http"
 	"time"
 
@@ -34,9 +35,12 @@ var upgrader = websocket.Upgrader{
 
 // Player is a middleman between the connection and the Game
 type Player struct {
-	game *Game
-	conn *websocket.Conn
-	send chan []byte
+	id              int
+	game            *Game
+	conn            *websocket.Conn
+	send            chan []byte
+	currentPosition map[string]int
+	rotation        int
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -111,7 +115,8 @@ func (p *Player) writePump() {
 }
 
 func connect(game *Game, w http.ResponseWriter, r *http.Request) {
-	if len(game.players) < 2 {
+	playerCount := len(game.players)
+	if playerCount < 2 {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Print("upgrade:", err)
@@ -119,20 +124,44 @@ func connect(game *Game, w http.ResponseWriter, r *http.Request) {
 		}
 		// defer conn.Close()
 
-		playersCount := len(game.players) + 1
 		send := make(chan []byte, 256)
-		player := &Player{game, conn, send}
+		currentPosition := map[string]int{"x": width / 2, "y": height/5 + playerCount*3*height/5}
+		rotation := getStartRotation()
+		player := &Player{playerCount, game, conn, send, currentPosition, rotation}
 		player.game.register <- player
 
 		go player.writePump()
 		go player.readPump()
 
-		log.Printf("player count: %d", len(player.game.players))
-		if playersCount == 2 {
+		if playerCount == 1 {
 			log.Printf("starting game")
 			game.startGame()
 		}
 	} else {
 		log.Printf("game has started, cannot join :(")
+	}
+}
+
+func (p *Player) move() {
+	curX := p.currentPosition["x"]
+	curY := p.currentPosition["y"]
+	rotationRad := float64(p.rotation) * math.Pi / 180
+	sinValue := math.Sin(rotationRad)
+	cosValue := math.Cos(rotationRad)
+	newX := curX
+	newY := curY
+
+	if math.Abs(cosValue) >= 0.5 {
+		newX = curX + int(cosValue/math.Abs(cosValue))
+	}
+	if math.Abs(sinValue) >= 0.5 {
+		newY = curY - int(sinValue/math.Abs(sinValue))
+	}
+	if p.game.board.isValidMove(newX, newY) {
+		p.currentPosition["x"] = newX
+		p.currentPosition["y"] = newY
+		p.game.board.fields[newX][newY].isUsed = true
+	} else {
+		log.Printf("Cannot move to field %d:%d. Game Over!!", newX, newY)
 	}
 }

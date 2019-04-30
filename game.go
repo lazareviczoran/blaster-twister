@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type Game struct {
 	register   chan *Player
 	unregister chan *Player
 	broadcast  chan []byte
+	board      *Board
 }
 
 func (g *Game) run() {
@@ -19,6 +21,8 @@ func (g *Game) run() {
 		select {
 		case player := <-g.register:
 			g.players[player] = true
+			currPos := player.currentPosition
+			player.game.board.fields[currPos["x"]][currPos["y"]].isUsed = true
 		case player := <-g.unregister:
 			log.Printf("unregister")
 			if _, ok := g.players[player]; ok {
@@ -38,17 +42,17 @@ func (g *Game) run() {
 	}
 }
 
-func newGame() *Game {
+func newGame(height, width int) *Game {
 	return &Game{
 		broadcast:  make(chan []byte),
 		register:   make(chan *Player),
 		unregister: make(chan *Player),
 		players:    make(map[*Player]bool),
+		board:      initBoard(height, width),
 	}
 }
 
 func (g *Game) startGame() {
-	log.Printf("startGame")
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -59,7 +63,27 @@ func (g *Game) startGame() {
 			startTime = t.String()
 			g.broadcast <- []byte(fmt.Sprintf("game started at %s", startTime))
 		}
-		random := getStartRotation()
-		g.broadcast <- []byte(fmt.Sprintf("%d sent at %s", random, t.String()))
+		movePlayers(g)
 	}
+}
+
+func movePlayers(g *Game) {
+	players := make([]*Player, 0)
+	for p := range g.players {
+		players = append(players, p)
+	}
+
+	sort.SliceStable(players, func(i, j int) bool { return players[i].id < players[j].id })
+	for _, p := range players {
+		p.move()
+	}
+
+	g.broadcast <- []byte(
+		fmt.Sprintf("new positions p1{%d:%d}, p2{%d:%d}",
+			players[0].currentPosition["x"],
+			players[0].currentPosition["y"],
+			players[1].currentPosition["x"],
+			players[1].currentPosition["y"],
+		),
+	)
 }

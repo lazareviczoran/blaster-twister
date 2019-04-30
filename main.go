@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"time"
 )
 
 const height int = 400
@@ -26,17 +27,10 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// rand.Seed(time.Now().UnixNano())
-	// for i := 0; i < 2; i++ {
-	// 	fmt.Printf("Player%d's staring rotation is:%d\n", i, getStartRotation())
-	// }
-	// board := initBoard(height, width)
-	// board.fields[30][50].isUsed = true
-
-	// fmt.Printf("This is the value of the 30th row and 50th column: %+v\n", &board.fields[30][50])
+	rand.Seed(time.Now().UnixNano())
 
 	flag.Parse()
-	game := newGame()
+	game := newGame(height, width)
 	go game.run()
 
 	http.HandleFunc("/", serveHome)

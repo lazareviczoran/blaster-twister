@@ -11,12 +11,19 @@ type Board struct {
 }
 
 func initBoard(height, width int) *Board {
-	fields := make([][]Field, height)
-	for i := 0; i < height; i++ {
-		fields[i] = make([]Field, width)
-		for j := 0; j < width; j++ {
+	fields := make([][]Field, width)
+	for i := 0; i < width; i++ {
+		fields[i] = make([]Field, height)
+		for j := 0; j < height; j++ {
 			fields[i][j] = Field{isUsed: false}
 		}
 	}
 	return &Board{fields: fields}
+}
+
+func (b *Board) isValidMove(x, y int) bool {
+	if x < 0 || x >= width || y < 0 || y >= height {
+		return false
+	}
+	return !b.fields[x][y].isUsed
 }
