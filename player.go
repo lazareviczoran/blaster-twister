@@ -162,6 +162,6 @@ func (p *Player) move() {
 		p.currentPosition["y"] = newY
 		p.game.board.fields[newX][newY].isUsed = true
 	} else {
-		log.Printf("Cannot move to field %d:%d. Game Over!!", newX, newY)
+		p.game.endGame <- p
 	}
 }

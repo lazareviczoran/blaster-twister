@@ -2,18 +2,17 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"time"
 )
 
 // Game holds the connections to the players
 type Game struct {
-	players    map[*Player]bool
-	register   chan *Player
-	unregister chan *Player
-	broadcast  chan []byte
-	board      *Board
+	players   map[*Player]bool
+	register  chan *Player
+	endGame   chan *Player
+	broadcast chan []byte
+	board     *Board
 }
 
 func (g *Game) run() {
@@ -23,32 +22,31 @@ func (g *Game) run() {
 			g.players[player] = true
 			currPos := player.currentPosition
 			player.game.board.fields[currPos["x"]][currPos["y"]].isUsed = true
-		case player := <-g.unregister:
-			log.Printf("unregister")
-			if _, ok := g.players[player]; ok {
-				delete(g.players, player)
-				close(player.send)
-			}
-		case message := <-g.broadcast:
-			for player := range g.players {
-				select {
-				case player.send <- message:
-				default:
-					close(player.send)
-					delete(g.players, player)
+		case player := <-g.endGame:
+			for p := range g.players {
+				if player.id != p.id {
+					g.sendToAll([]byte(fmt.Sprintf("{winner: %d}", p.id)))
 				}
 			}
+			for p := range g.players {
+				if _, ok := g.players[p]; ok {
+					delete(g.players, p)
+					close(p.send)
+				}
+			}
+		case message := <-g.broadcast:
+			g.sendToAll(message)
 		}
 	}
 }
 
 func newGame(height, width int) *Game {
 	return &Game{
-		broadcast:  make(chan []byte),
-		register:   make(chan *Player),
-		unregister: make(chan *Player),
-		players:    make(map[*Player]bool),
-		board:      initBoard(height, width),
+		broadcast: make(chan []byte),
+		register:  make(chan *Player),
+		endGame:   make(chan *Player),
+		players:   make(map[*Player]bool),
+		board:     initBoard(height, width),
 	}
 }
 
@@ -63,7 +61,22 @@ func (g *Game) startGame() {
 			startTime = t.String()
 			g.broadcast <- []byte(fmt.Sprintf("game started at %s", startTime))
 		}
+
+		if len(g.players) < 2 {
+			return
+		}
 		movePlayers(g)
+	}
+}
+
+func (g *Game) sendToAll(message []byte) {
+	for player := range g.players {
+		select {
+		case player.send <- message:
+		default:
+			close(player.send)
+			delete(g.players, player)
+		}
 	}
 }
 
@@ -79,7 +92,7 @@ func movePlayers(g *Game) {
 	}
 
 	g.broadcast <- []byte(
-		fmt.Sprintf("new positions p1{%d:%d}, p2{%d:%d}",
+		fmt.Sprintf("{p0:{x:%d, y:%d}, p1:{x:%d, y:%d}}",
 			players[0].currentPosition["x"],
 			players[0].currentPosition["y"],
 			players[1].currentPosition["x"],
