@@ -30,6 +30,9 @@ func (g *Game) run() {
 			}
 			for p := range g.players {
 				if _, ok := g.players[p]; ok {
+					if p.rotationTicker != nil {
+						p.stopRotation()
+					}
 					delete(g.players, p)
 					close(p.send)
 				}

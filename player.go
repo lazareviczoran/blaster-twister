@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"math"
 	"net/http"
@@ -41,6 +42,7 @@ type Player struct {
 	send            chan []byte
 	currentPosition map[string]int
 	rotation        int
+	rotationTicker  *time.Ticker
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -64,7 +66,15 @@ func (p *Player) readPump() {
 			}
 			break
 		}
-		p.game.broadcast <- message
+		var event map[string]string
+		if err := json.Unmarshal(message, &event); err != nil {
+			panic(err)
+		}
+		if event["dir"] == "down" {
+			go p.startRotation(event["key"])
+		} else {
+			p.stopRotation()
+		}
 	}
 }
 
@@ -127,7 +137,7 @@ func connect(game *Game, w http.ResponseWriter, r *http.Request) {
 		send := make(chan []byte, 256)
 		currentPosition := map[string]int{"x": width / 2, "y": height/5 + playerCount*3*height/5}
 		rotation := getStartRotation()
-		player := &Player{playerCount, game, conn, send, currentPosition, rotation}
+		player := &Player{playerCount, game, conn, send, currentPosition, rotation, nil}
 		player.game.register <- player
 
 		go player.writePump()
@@ -140,6 +150,22 @@ func connect(game *Game, w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("game has started, cannot join :(")
 	}
+}
+
+func (p *Player) startRotation(direction string) {
+	p.rotationTicker = time.NewTicker(50 * time.Millisecond)
+
+	for range p.rotationTicker.C {
+		if direction == "left" {
+			p.rotation = (p.rotation + 5) % 360
+		} else {
+			p.rotation = int(math.Abs(float64(p.rotation-5))) % 360
+		}
+	}
+}
+
+func (p *Player) stopRotation() {
+	p.rotationTicker.Stop()
 }
 
 func (p *Player) move() {
