@@ -8,6 +8,7 @@ import (
 
 // Game holds the connections to the players
 type Game struct {
+	id        string
 	players   map[*Player]bool
 	register  chan *Player
 	endGame   chan *Player
@@ -37,14 +38,16 @@ func (g *Game) run() {
 					close(p.send)
 				}
 			}
+			delete(activeGames, g.id)
 		case message := <-g.broadcast:
 			g.sendToAll(message)
 		}
 	}
 }
 
-func newGame(height, width int) *Game {
+func newGame(id string, height, width int) *Game {
 	return &Game{
+		id:        id,
 		broadcast: make(chan []byte),
 		register:  make(chan *Player),
 		endGame:   make(chan *Player),
