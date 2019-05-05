@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -40,8 +41,7 @@ type Player struct {
 	game            *Game
 	conn            *websocket.Conn
 	send            chan []byte
-	currentPosition map[string]int
-	rotation        int
+	currentPosition *sync.Map
 	rotationTicker  *time.Ticker
 }
 
@@ -135,9 +135,11 @@ func connect(game *Game, w http.ResponseWriter, r *http.Request) {
 		// defer conn.Close()
 
 		send := make(chan []byte, 256)
-		currentPosition := map[string]int{"x": width / 2, "y": height/5 + playerCount*3*height/5}
-		rotation := getStartRotation()
-		player := &Player{playerCount, game, conn, send, currentPosition, rotation, nil}
+		currentPosition := sync.Map{}
+		currentPosition.Store("x", width/2)
+		currentPosition.Store("y", height/5+playerCount*3*height/5)
+		currentPosition.Store("rotation", getStartRotation())
+		player := &Player{playerCount, game, conn, send, &currentPosition, nil}
 		player.game.register <- player
 
 		go player.writePump()
@@ -156,10 +158,11 @@ func (p *Player) startRotation(direction string) {
 	p.rotationTicker = time.NewTicker(50 * time.Millisecond)
 
 	for range p.rotationTicker.C {
+		currRotation, _ := p.currentPosition.Load("rotation")
 		if direction == "left" {
-			p.rotation = (p.rotation + 5) % 360
+			p.currentPosition.Store("rotation", (currRotation.(int)+5)%360)
 		} else {
-			p.rotation = int(math.Abs(float64(p.rotation-5))) % 360
+			p.currentPosition.Store("rotation", int(math.Abs(float64(currRotation.(int)-5)))%360)
 		}
 	}
 }
@@ -169,23 +172,24 @@ func (p *Player) stopRotation() {
 }
 
 func (p *Player) move() {
-	curX := p.currentPosition["x"]
-	curY := p.currentPosition["y"]
-	rotationRad := float64(p.rotation) * math.Pi / 180
+	curX, _ := p.currentPosition.Load("x")
+	curY, _ := p.currentPosition.Load("y")
+	curRotation, _ := p.currentPosition.Load("rotation")
+	rotationRad := float64(curRotation.(int)) * math.Pi / 180
 	sinValue := math.Sin(rotationRad)
 	cosValue := math.Cos(rotationRad)
-	newX := curX
-	newY := curY
+	newX := curX.(int)
+	newY := curY.(int)
 
 	if math.Abs(cosValue) >= 0.5 {
-		newX = curX + int(cosValue/math.Abs(cosValue))
+		newX = curX.(int) + int(cosValue/math.Abs(cosValue))
 	}
 	if math.Abs(sinValue) >= 0.5 {
-		newY = curY - int(sinValue/math.Abs(sinValue))
+		newY = curY.(int) - int(sinValue/math.Abs(sinValue))
 	}
 	if p.game.board.isValidMove(newX, newY) {
-		p.currentPosition["x"] = newX
-		p.currentPosition["y"] = newY
+		p.currentPosition.Store("x", newX)
+		p.currentPosition.Store("y", newY)
 		p.game.board.fields[newX][newY].isUsed = true
 	} else {
 		p.game.endGame <- p

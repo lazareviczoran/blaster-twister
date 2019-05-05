@@ -1,42 +1,44 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"sort"
 	"time"
 )
 
 // Game holds the connections to the players
 type Game struct {
 	id        string
-	players   map[*Player]bool
+	players   map[int]*Player
 	register  chan *Player
 	endGame   chan *Player
 	broadcast chan []byte
 	board     *Board
+	winner    *Player
 }
 
 func (g *Game) run() {
 	for {
 		select {
 		case player := <-g.register:
-			g.players[player] = true
-			currPos := player.currentPosition
-			player.game.board.fields[currPos["x"]][currPos["y"]].isUsed = true
+			g.players[player.id] = player
+			curX, _ := player.currentPosition.Load("x")
+			curY, _ := player.currentPosition.Load("y")
+			player.send <- g.toJSON()
+			g.board.fields[curX.(int)][curY.(int)].isUsed = true
 		case player := <-g.endGame:
-			for p := range g.players {
-				if player.id != p.id {
-					g.sendToAll([]byte(fmt.Sprintf("{winner: %d}", p.id)))
+			for id, p := range g.players {
+				if player.id != id {
+					g.winner = p
+					g.sendToAll(g.toJSON())
 				}
 			}
-			for p := range g.players {
-				if _, ok := g.players[p]; ok {
-					if p.rotationTicker != nil {
-						p.stopRotation()
-					}
-					delete(g.players, p)
-					close(p.send)
+			for id, p := range g.players {
+				if p.rotationTicker != nil {
+					p.stopRotation()
 				}
+				delete(g.players, id)
+				close(p.send)
 			}
 			delete(activeGames, g.id)
 		case message := <-g.broadcast:
@@ -51,8 +53,9 @@ func newGame(id string, height, width int) *Game {
 		broadcast: make(chan []byte),
 		register:  make(chan *Player),
 		endGame:   make(chan *Player),
-		players:   make(map[*Player]bool),
+		players:   make(map[int]*Player),
 		board:     initBoard(height, width),
+		winner:    nil,
 	}
 }
 
@@ -63,6 +66,10 @@ func (g *Game) startGame() {
 	startTime := ""
 
 	for t := range ticker.C {
+		if g.winner != nil {
+			break
+		}
+
 		if startTime == "" {
 			startTime = t.String()
 			g.broadcast <- []byte(fmt.Sprintf("game started at %s", startTime))
@@ -76,33 +83,40 @@ func (g *Game) startGame() {
 }
 
 func (g *Game) sendToAll(message []byte) {
-	for player := range g.players {
+	for id, player := range g.players {
 		select {
 		case player.send <- message:
 		default:
 			close(player.send)
-			delete(g.players, player)
+			delete(g.players, id)
 		}
 	}
 }
 
 func movePlayers(g *Game) {
-	players := make([]*Player, 0)
-	for p := range g.players {
-		players = append(players, p)
-	}
-
-	sort.SliceStable(players, func(i, j int) bool { return players[i].id < players[j].id })
-	for _, p := range players {
+	for _, p := range g.players {
 		p.move()
 	}
 
-	g.broadcast <- []byte(
-		fmt.Sprintf("{p0:{x:%d, y:%d}, p1:{x:%d, y:%d}}",
-			players[0].currentPosition["x"],
-			players[0].currentPosition["y"],
-			players[1].currentPosition["x"],
-			players[1].currentPosition["y"],
-		),
-	)
+	g.broadcast <- g.toJSON()
+}
+
+func (g *Game) toJSON() []byte {
+	temp := make(map[string]interface{})
+	playersStatusMap := make(map[int]interface{})
+	for id, p := range g.players {
+		playersStatusMap[id] = syncMapToMap(p.currentPosition)
+	}
+	temp["players"] = playersStatusMap
+
+	if g.winner != nil {
+		temp["winner"] = g.winner.id
+	}
+
+	res, err := json.Marshal(&temp)
+	if err != nil {
+		panic(err)
+	}
+
+	return res
 }
