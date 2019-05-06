@@ -6,78 +6,17 @@
   <style>
     canvas {
       display : inline-block;
-      width : 300px;
-      height : 400px;
       margin : auto;
       padding : 0;
       border : none;
       background-color : black;
     }
   </style>
-  <script>
-    window.addEventListener("load", function (evt) {
-      var output = document.getElementById("output");
-      var input = document.getElementById("input");
-      var gameId = document.location.pathname.substring(3);
-      var ws = new WebSocket("ws://" + document.location.host + "/ws/" + gameId);
-      ws.onopen = function (evt) {
-        print("OPEN");
-      };
-      ws.onclose = function (evt) {
-        print("CLOSE");
-        ws = null;
-      };
-      ws.onmessage = function (evt) {
-        print("RESPONSE: " + evt.data);
-      };
-      ws.onerror = function (evt) {
-        print("ERROR: " + evt.data);
-      };
-      var canvas = document.getElementsByTagName("canvas")[0];
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-      var gl = canvas.getContext("webgl")
-        || canvas.getContext("experimental-webgl");
-      if (!gl) {
-        document.querySelector("p").innerHTML =
-          "Failed to get WebGL context. "
-          + "Your browser or device may not support WebGL.";
-        return;
-      }
-      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-      gl.enable(gl.SCISSOR_TEST);
-      gl.scissor(150, 80, 1, 1);
-      gl.clearColor(1.0, 1.0, 0.0, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      var print = function (message) {
-        console.log(message);
-      };
-      document.onkeydown = function(event){
-        if (ws) {
-          if (event.repeat) { return }
-          if (event.keyCode === 37) {
-            ws.send(JSON.stringify({dir: 'down', key: 'left'}));
-          } else if (event.keyCode === 39) {
-            ws.send(JSON.stringify({dir: 'down', key: 'right'}));
-          }
-        }
-      };
-      document.onkeyup = function(event){
-        if (ws) {
-          if (event.keyCode === 37) {
-            ws.send(JSON.stringify({dir: 'up', key: 'left'}));
-          } else if (event.keyCode === 39) {
-            ws.send(JSON.stringify({dir: 'up', key: 'right'}));
-          }
-        }
-      };
-    });
-  </script>
+  <script type="text/javascript" src="/src/app.js"></script>
 </head>
 
 <body>
-  <canvas>
-  </canvas>
+  <canvas id="canvas"></canvas>
 </body>
 
 </html>

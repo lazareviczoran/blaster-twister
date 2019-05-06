@@ -76,6 +76,7 @@ func main() {
 			connect(game, w, r)
 		}
 	})
+	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("./scripts"))))
 	http.Handle("/", router)
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {
