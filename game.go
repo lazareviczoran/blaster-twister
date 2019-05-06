@@ -25,7 +25,7 @@ func (g *Game) run() {
 			curX, _ := player.currentPosition.Load("x")
 			curY, _ := player.currentPosition.Load("y")
 			player.send <- g.toJSON()
-			g.board.fields[curX.(int)][curY.(int)].isUsed = true
+			g.board.fields[curX.(int)][curY.(int)].setUsed(player)
 		case player := <-g.endGame:
 			for id, p := range g.players {
 				if player.id != id {

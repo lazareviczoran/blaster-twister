@@ -190,7 +190,7 @@ func (p *Player) move() {
 	if p.game.board.isValidMove(newX, newY) {
 		p.currentPosition.Store("x", newX)
 		p.currentPosition.Store("y", newY)
-		p.game.board.fields[newX][newY].isUsed = true
+		p.game.board.fields[newX][newY].setUsed(p)
 	} else {
 		p.game.endGame <- p
 	}
