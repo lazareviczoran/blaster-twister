@@ -162,7 +162,7 @@ func (p *Player) startRotation(direction string) {
 		if direction == "left" {
 			p.currentPosition.Store("rotation", (currRotation.(int)+5)%360)
 		} else {
-			p.currentPosition.Store("rotation", int(math.Abs(float64(currRotation.(int)-5)))%360)
+			p.currentPosition.Store("rotation", (currRotation.(int)+355)%360)
 		}
 	}
 }
