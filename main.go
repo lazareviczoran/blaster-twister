@@ -56,12 +56,10 @@ func serveGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	HOST := "localhost"
 	PORT := os.Getenv("PORT")
 	if PORT == "" {
 		PORT = "8000"
 	}
-	addr := flag.String("addr", HOST+":"+PORT, "http service address")
 	rand.Seed(time.Now().UnixNano())
 
 	flag.Parse()
@@ -81,7 +79,7 @@ func main() {
 	})
 	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("./scripts"))))
 	http.Handle("/", router)
-	err := http.ListenAndServe(*addr, nil)
+	err := http.ListenAndServe(":"+PORT, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
