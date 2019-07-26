@@ -1,18 +1,51 @@
 # For more Go information and examples, see
 # https://docs.semaphoreci.com/article/86-language-golang
 version: v1.0
-name: Hello Semaphore
+name: Blaster Twister
 agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu1804
 blocks:
-  - name: Golang example
+  - name: Build project
     task:
       jobs:
-        - name: Run Go
+        - name: go get & build
           commands:
-            - go version
-            # Uncomment the following line to pull your code,
-            # then proceed by adding your custom commands:
-            #- checkout
+            - checkout
+            - sem-version go 1.12
+            - go get
+            - go build
+            - mkdir bin
+            - mv blaster-twister bin
+            - cache store $(blaster-twister) bin
+
+  - name: Check code style
+    task:
+      jobs:
+      - name: golint
+        commands:
+          - checkout
+          - sem-version go 1.12
+          - go get -u golang.org/x/lint/golint
+          - ~/go/bin/golint
+
+  # - name: Run tests
+  #   task:
+  #     prologue:
+  #       commands:
+  #         - checkout
+  #         - sem-version go 1.12
+  #     jobs:
+  #     - name: go test
+  #       commands:
+  #         - sem-service start postgres
+  #         - psql -p 5432 -h localhost -U postgres -c "CREATE DATABASE s2"
+  #         - go get github.com/lib/pq
+  #         - go test ./... -v
+
+  #     - name: Test web server
+  #       commands:
+  #         - cache restore $(checksum webServer.go)
+  #         - ./bin/webServer 8001 &
+  #         - curl --silent localhost:8001/time | grep "The current time is"
