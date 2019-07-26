@@ -1,42 +1,61 @@
+const WIDTH = 300;
+const HEIGHT = 400;
+const TRIANGLE_SIZE = 3;
+const SIDE_COUNT = 3;
+const STROKE_WIDTH = 4;
+
 window.addEventListener("load", function (evt) {
+  const board = new Array(0);
   const canvas = document.getElementById('canvas');
-  canvas.width = 300;
-  canvas.height = 400;
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
   const ctx = canvas.getContext('2d');
-  var drawTriangle = function (pId, x, y, rotation) {
-    var size = 5;
-    var sideCount = 3;
-    var strokeWidth=4;
-    var strokeColor='purple';
-    var fillColor='skyblue';
-    var radians=-rotation*Math.PI/180;
+  const drawTriangle = function (pId, x, y, rotation) {
+    markFieldAsUsed(pId, x, y)
+    const strokeColor= pId === '0'?'purple':'aliceblue';
+    const fillColor= pId === '0'?'skyblue':'yellow';
+    const radians=-rotation*Math.PI/180;
     ctx.translate(x, y);
     ctx.rotate(radians);
     ctx.beginPath();
-    ctx.moveTo (size * Math.cos(0), size * Math.sin(0));
-    for (var i = 1; i <= sideCount;i += 1) {
-        ctx.lineTo (size * Math.cos(i * 2 * Math.PI / sideCount), size * Math.sin(i * 2 * Math.PI / sideCount));
+    ctx.moveTo (TRIANGLE_SIZE * Math.cos(0), TRIANGLE_SIZE * Math.sin(0));
+    for (let i = 1; i <= SIDE_COUNT;i += 1) {
+        ctx.lineTo (TRIANGLE_SIZE * Math.cos(i * 2 * Math.PI / SIDE_COUNT), TRIANGLE_SIZE * Math.sin(i * 2 * Math.PI / SIDE_COUNT));
     }
     ctx.closePath();
     ctx.fillStyle=fillColor;
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = strokeWidth;
+    ctx.lineWidth = STROKE_WIDTH;
     ctx.stroke();
     ctx.fill();
     ctx.rotate(-radians);
     ctx.translate(-x, -y);
   };
-  var movePlayers = function (players) {
+  const movePlayers = function (players) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawVisitedPositions();
+
     Object.entries(players).forEach(function (entry) {
-      var id = entry[0];
-      var p = entry[1];
+      const id = entry[0];
+      const p = entry[1];
       drawTriangle(id, p.x, p.y, p.rotation);
     })
   }
-  var gameId = document.location.pathname.substring(3);
-  var ws = new WebSocket("ws://" + document.location.host + "/ws/" + gameId);
-  var playerId;
+  const markFieldAsUsed = function (pId, x, y) {
+    board.push({x, y, pId});
+  };
+  const drawVisitedPositions = function () {
+    board.forEach(function (pos) {
+      ctx.fillStyle = pos.pId === "0"?"green":"red";
+      ctx.fillRect(pos.x,pos.y,1,1);
+    });
+  };
+  const drawWinner = function (pId) {
+    console.log(pId);
+  }
+  const gameId = document.location.pathname.substring(3);
+  let ws = new WebSocket("ws://" + document.location.host + "/ws/" + gameId);
+  let playerId;
   ws.onopen = function (evt) {
     console.log("OPEN");
   };
@@ -45,13 +64,16 @@ window.addEventListener("load", function (evt) {
     ws = null;
   };
   ws.onmessage = function (evt) {
-    console.log("RESPONSE: " + evt.data);
-    var status = JSON.parse(evt.data);
-    var playerKeys = Object.keys(status.players);
+    const status = JSON.parse(evt.data);
+    const playerKeys = Object.keys(status.players);
     if (!playerId) {
       playerId = playerKeys.length === 1 ? playerKeys[0]:playerKeys[1]
     }
-    movePlayers(status.players)
+    if (status.winner) {
+      drawWinner(status.winner);
+    } else {
+      movePlayers(status.players);
+    }
   };
   ws.onerror = function (evt) {
     console.log("ERROR: " + evt.data);
