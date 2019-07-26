@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -14,11 +15,9 @@ import (
 const height int = 400
 const width int = 300
 
-var addr = flag.String("addr", "localhost:8080", "http service address")
 var activeGames = make(map[string]*Game)
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
-	log.Printf("serveHome")
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
@@ -31,7 +30,6 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func createGame(w http.ResponseWriter, r *http.Request) {
-	log.Printf("createGame")
 	if r.URL.Path != "/new" {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
@@ -50,7 +48,6 @@ func createGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveGame(w http.ResponseWriter, r *http.Request) {
-	log.Printf("serveGame")
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -59,6 +56,12 @@ func serveGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	HOST := "localhost"
+	PORT := os.Getenv("PORT")
+	if PORT == "" {
+		PORT = "8000"
+	}
+	addr := flag.String("addr", HOST+":"+PORT, "http service address")
 	rand.Seed(time.Now().UnixNano())
 
 	flag.Parse()
