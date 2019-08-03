@@ -18,6 +18,10 @@ const width int = 300
 var activeGames = make(map[string]*Game)
 
 func main() {
+	HOST := ""
+	if os.Getenv("GO_ENV") == "development" {
+		HOST = "localhost"
+	}
 	PORT := os.Getenv("PORT")
 	if PORT == "" {
 		PORT = "8080"
@@ -41,7 +45,7 @@ func main() {
 	})
 	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("./scripts"))))
 	http.Handle("/", router)
-	err := http.ListenAndServe(":"+PORT, nil)
+	err := http.ListenAndServe(HOST+":"+PORT, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
