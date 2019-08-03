@@ -27,6 +27,7 @@ func (g *Game) run() {
 			player.currentPosition.Store("x", startX)
 			player.currentPosition.Store("y", startY)
 			player.currentPosition.Store("rotation", getStartRotation())
+			player.currentPosition.Store("trace", false)
 			player.game.board.fields[startX][startY].setUsed(player)
 			player.broadcastCurrentPosition()
 			if len(g.players) == 2 {

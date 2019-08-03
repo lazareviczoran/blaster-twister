@@ -10,8 +10,8 @@ window.addEventListener("load", function (evt) {
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const ctx = canvas.getContext('2d');
-  const drawTriangle = function (pId, x, y, rotation) {
-    markFieldAsUsed(pId, x, y)
+  const drawTriangle = function (pId, x, y, rotation, trace) {
+    markFieldAsUsed(pId, x, y, trace)
     const strokeColor= pId === '0'?'purple':'aliceblue';
     const fillColor= pId === '0'?'skyblue':'yellow';
     const radians=rotation*Math.PI/180;
@@ -38,16 +38,18 @@ window.addEventListener("load", function (evt) {
     Object.entries(players).forEach(function (entry) {
       const id = entry[0];
       const p = entry[1];
-      drawTriangle(id, p.x, p.y, p.rotation);
+      drawTriangle(id, p.x, p.y, p.rotation, p.trace);
     })
   }
-  const markFieldAsUsed = function (pId, x, y) {
-    board.push({x, y, pId});
+  const markFieldAsUsed = function (pId, x, y, trace) {
+    board.push({x, y, pId, trace});
   };
   const drawVisitedPositions = function () {
     board.forEach(function (pos) {
-      ctx.fillStyle = pos.pId === "0"?"green":"red";
-      ctx.fillRect(pos.x,pos.y,1,1);
+      if (pos.trace) {
+        ctx.fillStyle = pos.pId === "0"?"green":"red";
+        ctx.fillRect(pos.x,pos.y,1,1);
+      }
     });
   };
   const drawWinner = function (pId) {
@@ -65,7 +67,7 @@ window.addEventListener("load", function (evt) {
   };
   ws.onmessage = function (evt) {
     const status = JSON.parse(evt.data);
-    if (status.winner) {
+    if (status.winner != null) {
       drawWinner(status.winner);
     } else {
       const playerKeys = Object.keys(status.players);

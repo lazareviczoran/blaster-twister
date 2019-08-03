@@ -186,7 +186,14 @@ func moveBresenham(p *Player, x0 int, y0 int, rotationRad float64) {
 		if p.game.board.isValidMove(x0, y0) {
 			p.currentPosition.Store("x", x0)
 			p.currentPosition.Store("y", y0)
-			p.game.board.fields[x0][y0].setUsed(p)
+			trace, ok := p.currentPosition.Load("trace")
+			if !ok {
+				log.Printf("Could not load value from map")
+				continue
+			}
+			if trace.(bool) {
+				p.game.board.fields[x0][y0].setUsed(p)
+			}
 			p.broadcastCurrentPosition()
 		} else {
 			p.alive = false
@@ -212,17 +219,32 @@ func (p *Player) broadcastCurrentPosition() {
 }
 
 func (p *Player) move() {
-	ticker := time.NewTicker(1000 / fps * time.Millisecond)
-	defer ticker.Stop()
+	mainTicker := time.NewTicker(1000 / fps * time.Millisecond)
+	defer mainTicker.Stop()
 
-	for range ticker.C {
-		if !p.alive || p.game.winner != nil {
-			break
+	visitedTicker := createRandomIntervalTicker(1000, 2000)
+
+	for {
+		select {
+		case <-mainTicker.C:
+			if !p.alive || p.game.winner != nil {
+				visitedTicker.Stop()
+				break
+			}
+			curX, _ := p.currentPosition.Load("x")
+			curY, _ := p.currentPosition.Load("y")
+			curRotation, _ := p.currentPosition.Load("rotation")
+			rotationRad := float64(curRotation.(int)) * math.Pi / 180
+			moveBresenham(p, curX.(int), curY.(int), rotationRad)
+		case <-visitedTicker.C:
+			trace, ok := p.currentPosition.Load("trace")
+			if !ok {
+				log.Printf("Could not load value from map")
+				continue
+			}
+			log.Printf("these are the values %t and %t", trace.(bool), !trace.(bool))
+			p.currentPosition.Store("trace", !trace.(bool))
+			visitedTicker = createRandomIntervalTicker(1000, 2000)
 		}
-		curX, _ := p.currentPosition.Load("x")
-		curY, _ := p.currentPosition.Load("y")
-		curRotation, _ := p.currentPosition.Load("rotation")
-		rotationRad := float64(curRotation.(int)) * math.Pi / 180
-		moveBresenham(p, curX.(int), curY.(int), rotationRad)
 	}
 }
