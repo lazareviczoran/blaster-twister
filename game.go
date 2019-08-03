@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const fps = 30
+
 // Game holds the connections to the players
 type Game struct {
 	id        string
@@ -60,7 +62,7 @@ func newGame(id string, height, width int) *Game {
 }
 
 func (g *Game) startGame() {
-	ticker := time.NewTicker(200 * time.Millisecond)
+	ticker := time.NewTicker(1000 / fps * time.Millisecond)
 	defer ticker.Stop()
 
 	startTime := ""
