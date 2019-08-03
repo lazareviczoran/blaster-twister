@@ -54,7 +54,7 @@ window.addEventListener("load", function (evt) {
     console.log(pId);
   }
   const gameId = document.location.pathname.substring(3);
-  let ws = new WebSocket("ws://" + document.location.host + "/ws/" + gameId);
+  let ws = new WebSocket("wss://" + document.location.host + "/ws/" + gameId);
   let playerId;
   ws.onopen = function (evt) {
     console.log("OPEN");
