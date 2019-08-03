@@ -1,6 +1,6 @@
 const WIDTH = 300;
 const HEIGHT = 400;
-const TRIANGLE_SIZE = 3;
+const TRIANGLE_SIZE = 2;
 const SIDE_COUNT = 3;
 const STROKE_WIDTH = 4;
 
@@ -14,7 +14,7 @@ window.addEventListener("load", function (evt) {
     markFieldAsUsed(pId, x, y)
     const strokeColor= pId === '0'?'purple':'aliceblue';
     const fillColor= pId === '0'?'skyblue':'yellow';
-    const radians=-rotation*Math.PI/180;
+    const radians=rotation*Math.PI/180;
     ctx.translate(x, y);
     ctx.rotate(radians);
     ctx.beginPath();
@@ -54,7 +54,7 @@ window.addEventListener("load", function (evt) {
     console.log(pId);
   }
   const gameId = document.location.pathname.substring(3);
-  let ws = new WebSocket("wss://" + document.location.host + "/ws/" + gameId);
+  let ws = new WebSocket("ws://" + document.location.host + "/ws/" + gameId);
   let playerId;
   ws.onopen = function (evt) {
     console.log("OPEN");
@@ -65,13 +65,13 @@ window.addEventListener("load", function (evt) {
   };
   ws.onmessage = function (evt) {
     const status = JSON.parse(evt.data);
-    const playerKeys = Object.keys(status.players);
-    if (!playerId) {
-      playerId = playerKeys.length === 1 ? playerKeys[0]:playerKeys[1]
-    }
     if (status.winner) {
       drawWinner(status.winner);
     } else {
+      const playerKeys = Object.keys(status.players);
+      if (!playerId) {
+        playerId = playerKeys.length === 1 ? playerKeys[0]:playerKeys[1]
+      }
       movePlayers(status.players);
     }
   };
