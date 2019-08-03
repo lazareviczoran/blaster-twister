@@ -23,6 +23,8 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
+
+	fps = 10
 )
 
 var (
@@ -43,6 +45,7 @@ type Player struct {
 	send            chan []byte
 	currentPosition *sync.Map
 	rotationTicker  *time.Ticker
+	alive           bool
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -51,10 +54,6 @@ type Player struct {
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
 func (p *Player) readPump() {
-	// defer func() {
-	// 	p.game.unregister <- p
-	// 	p.conn.Close()
-	// }()
 	p.conn.SetReadLimit(maxMessageSize)
 	p.conn.SetReadDeadline(time.Now().Add(pongWait))
 	p.conn.SetPongHandler(func(string) error { p.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
@@ -68,7 +67,7 @@ func (p *Player) readPump() {
 		}
 		var event map[string]string
 		if err := json.Unmarshal(message, &event); err != nil {
-			panic(err)
+			log.Printf("unmarshal error: %v", err)
 		}
 		if event["dir"] == "down" {
 			go p.startRotation(event["key"])
@@ -105,13 +104,6 @@ func (p *Player) writePump() {
 			}
 			w.Write(message)
 
-			// Add queued chat messages to the current websocket message.
-			n := len(p.send)
-			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-p.send)
-			}
-
 			if err := w.Close(); err != nil {
 				return
 			}
@@ -136,30 +128,20 @@ func connect(game *Game, w http.ResponseWriter, r *http.Request) {
 
 		send := make(chan []byte, 256)
 		currentPosition := sync.Map{}
-		currentPosition.Store("x", width/2)
-		currentPosition.Store("y", height/5+playerCount*3*height/5)
-		currentPosition.Store("rotation", getStartRotation())
-		player := &Player{playerCount, game, conn, send, &currentPosition, nil}
-		player.game.register <- player
-
+		player := &Player{playerCount, game, conn, send, &currentPosition, nil, true}
 		go player.writePump()
 		go player.readPump()
 
-		if playerCount == 1 {
-			log.Printf("starting game")
-			game.startGame()
-		}
-	} else {
-		log.Printf("game has started, cannot join :(")
+		player.game.register <- player
 	}
 }
 
 func (p *Player) startRotation(direction string) {
-	p.rotationTicker = time.NewTicker(50 * time.Millisecond)
+	p.rotationTicker = time.NewTicker(30 * time.Millisecond)
 
 	for range p.rotationTicker.C {
 		currRotation, _ := p.currentPosition.Load("rotation")
-		if direction == "left" {
+		if direction == "right" {
 			p.currentPosition.Store("rotation", (currRotation.(int)+5)%360)
 		} else {
 			p.currentPosition.Store("rotation", (currRotation.(int)+355)%360)
@@ -169,29 +151,78 @@ func (p *Player) startRotation(direction string) {
 
 func (p *Player) stopRotation() {
 	p.rotationTicker.Stop()
+	p.rotationTicker = nil
+}
+
+func moveBresenham(p *Player, x0 int, y0 int, rotationRad float64) {
+	x1 := int(float64(x0) + math.Cos(rotationRad)*1000)
+	y1 := int(float64(y0) + math.Sin(rotationRad)*1000)
+
+	dx := int(math.Abs(float64(x1 - x0)))
+	dy := -(int(math.Abs(float64(y1 - y0))))
+	sx := 1
+	if x1 < x0 {
+		sx = -1
+	}
+	sy := 1
+	if y1 < y0 {
+		sy = -1
+	}
+	err := dx + dy
+	for i := 0; i < 3; i++ {
+		e2 := 2 * err
+		if e2 >= dy {
+			if x0 != x1 {
+				err += dy
+				x0 += sx
+			}
+		}
+		if e2 <= dx {
+			if y0 != y1 {
+				err += dx
+				y0 += sy
+			}
+		}
+		if p.game.board.isValidMove(x0, y0) {
+			p.currentPosition.Store("x", x0)
+			p.currentPosition.Store("y", y0)
+			p.game.board.fields[x0][y0].setUsed(p)
+			p.broadcastCurrentPosition()
+		} else {
+			p.alive = false
+			p.game.endGame <- p
+			break
+		}
+	}
+}
+
+func (p *Player) broadcastCurrentPosition() {
+	temp := make(map[string]interface{})
+	playersStatusMap := make(map[int]interface{})
+	playersStatusMap[p.id] = syncMapToMap(p.currentPosition)
+	temp["players"] = playersStatusMap
+
+	res, err := json.Marshal(&temp)
+	if err != nil {
+		log.Printf("Could not convert to JSON")
+		return
+	}
+
+	p.game.sendToAll(res)
 }
 
 func (p *Player) move() {
-	curX, _ := p.currentPosition.Load("x")
-	curY, _ := p.currentPosition.Load("y")
-	curRotation, _ := p.currentPosition.Load("rotation")
-	rotationRad := float64(curRotation.(int)) * math.Pi / 180
-	sinValue := math.Sin(rotationRad)
-	cosValue := math.Cos(rotationRad)
-	newX := curX.(int)
-	newY := curY.(int)
+	ticker := time.NewTicker(1000 / fps * time.Millisecond)
+	defer ticker.Stop()
 
-	if math.Abs(cosValue) >= 0.5 {
-		newX = curX.(int) + int(cosValue/math.Abs(cosValue))
-	}
-	if math.Abs(sinValue) >= 0.5 {
-		newY = curY.(int) - int(sinValue/math.Abs(sinValue))
-	}
-	if p.game.board.isValidMove(newX, newY) {
-		p.currentPosition.Store("x", newX)
-		p.currentPosition.Store("y", newY)
-		p.game.board.fields[newX][newY].setUsed(p)
-	} else {
-		p.game.endGame <- p
+	for range ticker.C {
+		if !p.alive || p.game.winner != nil {
+			break
+		}
+		curX, _ := p.currentPosition.Load("x")
+		curY, _ := p.currentPosition.Load("y")
+		curRotation, _ := p.currentPosition.Load("rotation")
+		rotationRad := float64(curRotation.(int)) * math.Pi / 180
+		moveBresenham(p, curX.(int), curY.(int), rotationRad)
 	}
 }
