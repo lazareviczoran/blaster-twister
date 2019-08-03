@@ -15,6 +15,8 @@ type Game struct {
 	broadcast chan []byte
 	board     *Board
 	winner    *Player
+	createdAt time.Time
+	available bool
 }
 
 func (g *Game) run() {
@@ -77,10 +79,13 @@ func newGame(id string, height, width int) *Game {
 		players:   make(map[int]*Player),
 		board:     initBoard(height, width),
 		winner:    nil,
+		createdAt: time.Now(),
+		available: true,
 	}
 }
 
 func (g *Game) startGame() {
+	g.available = false
 	startTime := time.Now()
 	// g.broadcast <- []byte(fmt.Sprintf("game started at %s", startTime))
 	log.Printf("game started at %v", startTime)

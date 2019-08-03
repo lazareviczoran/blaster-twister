@@ -242,7 +242,6 @@ func (p *Player) move() {
 				log.Printf("Could not load value from map")
 				continue
 			}
-			log.Printf("these are the values %t and %t", trace.(bool), !trace.(bool))
 			p.currentPosition.Store("trace", !trace.(bool))
 			visitedTicker = createRandomIntervalTicker(1000, 2000)
 		}
