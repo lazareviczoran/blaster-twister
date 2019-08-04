@@ -194,7 +194,9 @@ func moveBresenham(p *Player, x0 int, y0 int, rotationRad float64) {
 			if trace.(bool) {
 				p.game.board.fields[x0][y0].setUsed(p)
 			}
-			p.broadcastCurrentPosition()
+			if p.game.winner == nil {
+				p.broadcastCurrentPosition()
+			}
 		} else {
 			p.alive = false
 			p.game.endGame <- p

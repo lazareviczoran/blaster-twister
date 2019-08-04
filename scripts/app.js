@@ -1,47 +1,68 @@
 const WIDTH = 300;
 const HEIGHT = 400;
 const TRIANGLE_SIZE = 2;
+const CLEAR_TRIANGLE_SIZE = 3;
 const SIDE_COUNT = 3;
 const STROKE_WIDTH = 4;
+const CLEAR_STROKE_WIDTH = 5;
 
 window.addEventListener("load", function (evt) {
   const board = new Array(0);
+  const previousTrianglePos = {};
   const canvas = document.getElementById('canvas');
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const ctx = canvas.getContext('2d');
-  const drawTriangle = function (pId, x, y, rotation, trace) {
-    markFieldAsUsed(pId, x, y, trace)
-    const strokeColor= pId === '0'?'purple':'aliceblue';
-    const fillColor= pId === '0'?'skyblue':'yellow';
+  const drawTriangle = function (pId, {x, y, rotation}, clear) {
     const radians=rotation*Math.PI/180;
+    const size = clear?CLEAR_TRIANGLE_SIZE:TRIANGLE_SIZE
+    let strokeColor= pId === '0'?'purple':'aliceblue';
+    let fillColor= pId === '0'?'skyblue':'yellow';
+    if (clear) {
+      strokeColor = 'black'
+      fillColor = 'black'
+    }
     ctx.translate(x, y);
     ctx.rotate(radians);
     ctx.beginPath();
-    ctx.moveTo (TRIANGLE_SIZE * Math.cos(0), TRIANGLE_SIZE * Math.sin(0));
+    ctx.moveTo (size * Math.cos(0), size * Math.sin(0));
     for (let i = 1; i <= SIDE_COUNT;i += 1) {
-        ctx.lineTo (TRIANGLE_SIZE * Math.cos(i * 2 * Math.PI / SIDE_COUNT), TRIANGLE_SIZE * Math.sin(i * 2 * Math.PI / SIDE_COUNT));
+      ctx.lineTo(
+        size * Math.cos(i * 2 * Math.PI / SIDE_COUNT),
+        size * Math.sin(i * 2 * Math.PI / SIDE_COUNT)
+      );
     }
     ctx.closePath();
     ctx.fillStyle=fillColor;
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = STROKE_WIDTH;
+    ctx.lineWidth = clear?CLEAR_STROKE_WIDTH:STROKE_WIDTH;
     ctx.stroke();
     ctx.fill();
     ctx.rotate(-radians);
     ctx.translate(-x, -y);
   };
+  const clearTriangle = function (pId) {
+    const prevPos = previousTrianglePos[pId];
+    if (prevPos) {
+      drawTriangle(pId, prevPos, true)
+    }
+  }
   const movePlayers = function (players) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    Object.entries(players).forEach(function (entry) {
+      const [id] = entry;
+      clearTriangle(id)
+    });
+
     drawVisitedPositions();
 
     Object.entries(players).forEach(function (entry) {
-      const id = entry[0];
-      const p = entry[1];
-      drawTriangle(id, p.x, p.y, p.rotation, p.trace);
+      const [id, p] = entry;
+      markFieldAsUsed(id, p)
+      drawTriangle(id, p);
     })
   }
-  const markFieldAsUsed = function (pId, x, y, trace) {
+  const markFieldAsUsed = function (pId, {x, y, trace, rotation}) {
+    previousTrianglePos[pId] = {x, y, rotation}
     board.push({x, y, pId, trace});
   };
   const drawVisitedPositions = function () {
