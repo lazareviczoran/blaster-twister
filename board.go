@@ -2,7 +2,7 @@ package main
 
 // Field represents a pixel of the arena
 type Field struct {
-	player *Player
+	player Player
 }
 
 // Board is a model of the arena
@@ -21,13 +21,21 @@ func initBoard(height, width int) *Board {
 	return &Board{fields: fields}
 }
 
-func (b *Board) isValidMove(x, y int) bool {
-	if x < 0 || x >= width || y < 0 || y >= height {
+func (b *Board) isValidMove(fromX, fromY, toX, toY int) bool {
+	if toX < 0 || toX >= width || toY < 0 || toY >= height {
 		return false
 	}
-	return b.fields[x][y].player == nil
+
+	if toX != fromX &&
+		toY != fromY &&
+		b.fields[toX][fromY].player != nil &&
+		b.fields[fromX][toY].player != nil {
+		return false
+	}
+
+	return b.fields[toX][toY].player == nil
 }
 
-func (f *Field) setUsed(p *Player) {
+func (f *Field) setUsed(p Player) {
 	f.player = p
 }

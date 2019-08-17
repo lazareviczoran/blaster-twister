@@ -14,6 +14,7 @@ func createRouter() *mux.Router {
 	router.HandleFunc("/", serveHome)
 	router.HandleFunc("/new", createGame)
 	router.HandleFunc("/join", joinGame)
+	router.HandleFunc("/single-player", createSinglePlayerGame)
 	router.HandleFunc("/g/{gameID}", serveGame)
 	router.HandleFunc("/ws/{gameID}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -21,7 +22,7 @@ func createRouter() *mux.Router {
 
 		game := activeGames[key]
 		if game != nil {
-			connect(game, w, r)
+			connectPlayer(game, w, r)
 		}
 	})
 	return router
@@ -53,6 +54,26 @@ func createGame(w http.ResponseWriter, r *http.Request) {
 	game := newGame(gameID, height, width)
 	activeGames[gameID] = game
 	go game.run()
+
+	http.Redirect(w, r, fmt.Sprintf("/g/%s", gameID), http.StatusSeeOther)
+}
+
+func createSinglePlayerGame(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/single-player" {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	gameID := randToken()
+	game := newGame(gameID, height, width)
+	activeGames[gameID] = game
+	go game.run()
+
+	connectBot(game)
 
 	http.Redirect(w, r, fmt.Sprintf("/g/%s", gameID), http.StatusSeeOther)
 }

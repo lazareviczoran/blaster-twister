@@ -3,18 +3,22 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"net/http"
+	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // Game holds the connections to the players
 type Game struct {
 	id        string
-	players   map[int]*Player
-	register  chan *Player
-	endGame   chan *Player
+	players   map[int]Player
+	register  chan Player
+	endGame   chan Player
 	broadcast chan []byte
 	board     *Board
-	winner    *Player
+	winner    Player
 	createdAt time.Time
 	available bool
 }
@@ -23,46 +27,31 @@ func (g *Game) run() {
 	for {
 		select {
 		case player := <-g.register:
-			g.players[player.id] = player
-			startX := width / 2
-			startY := height/5 + player.id*3*height/5
-			player.currentPosition.Store("x", startX)
-			player.currentPosition.Store("y", startY)
-			player.currentPosition.Store("rotation", getStartRotation())
-			player.currentPosition.Store("trace", false)
-			player.game.board.fields[startX][startY].setUsed(player)
-			player.broadcastCurrentPosition()
+			g.players[player.ID()] = player
 			if len(g.players) == 2 {
 				g.startGame()
 			}
-		case player := <-g.endGame:
-			var winner *Player
-			for id, p := range g.players {
-				if p.alive && player.id != id {
-					if winner != nil {
-						// we have more than one players alive
-						return
-					}
+		case <-g.endGame:
+			var winner Player
+			alivePlayers := 0
+			for _, p := range g.players {
+				if p.IsAlive() {
+					alivePlayers++
 					winner = p
 				}
 			}
-			if winner != nil {
+			if alivePlayers == 1 {
 				g.winner = winner
 				temp := make(map[string]interface{})
-				temp["winner"] = winner.id
+				temp["winner"] = winner.ID()
 				res, err := json.Marshal(&temp)
 				if err != nil {
-					log.Printf("Could not convert to JSON")
+					log.Printf("Could not convert to JSON, %v", err)
 				}
-				for id, p := range g.players {
-					p.send <- res
-					if p.rotationTicker != nil {
-						p.stopRotation()
-					}
-					delete(g.players, id)
-					close(p.send)
-				}
+				g.sendToAll(res)
+				g.destroyPlayers()
 				delete(activeGames, g.id)
+				return
 			}
 		case message := <-g.broadcast:
 			g.sendToAll(message)
@@ -74,9 +63,9 @@ func newGame(id string, height, width int) *Game {
 	return &Game{
 		id:        id,
 		broadcast: make(chan []byte),
-		register:  make(chan *Player),
-		endGame:   make(chan *Player),
-		players:   make(map[int]*Player),
+		register:  make(chan Player),
+		endGame:   make(chan Player),
+		players:   make(map[int]Player),
 		board:     initBoard(height, width),
 		winner:    nil,
 		createdAt: time.Now(),
@@ -91,17 +80,63 @@ func (g *Game) startGame() {
 	log.Printf("game started at %v", startTime)
 
 	for _, p := range g.players {
-		go p.move()
+		go p.Move()
 	}
 }
 
 func (g *Game) sendToAll(message []byte) {
-	for id, player := range g.players {
-		select {
-		case player.send <- message:
-		default:
-			close(player.send)
-			delete(g.players, id)
+	for _, p := range g.players {
+		p.Broadcast(message)
+	}
+}
+
+func connectPlayer(game *Game, w http.ResponseWriter, r *http.Request) {
+	id := len(game.players)
+	if id < 2 {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Print("upgrade:", err)
+			return
 		}
+
+		initPlayer(game, id, conn)
+	}
+}
+
+func connectBot(game *Game) {
+	id := len(game.players)
+	if id < 2 {
+		initPlayer(game, id, nil)
+	}
+}
+
+func initPlayer(game *Game, id int, conn *websocket.Conn) {
+	currentPosition := sync.Map{}
+	send := make(chan []byte, 256)
+	var player Player
+	if conn != nil {
+		human := &Human{PlayerData{id, game, send, &currentPosition, nil, true}, conn}
+		player = human
+		go human.writePump()
+		go human.readPump()
+	} else {
+		bot := &Bot{PlayerData{id, game, send, &currentPosition, nil, true}}
+		player = bot
+		go func() {
+			for {
+				select {
+				case <-bot.send:
+					// listen to bots send
+				}
+			}
+		}()
+	}
+	player.InitPosition()
+	game.register <- player
+}
+
+func (g *Game) destroyPlayers() {
+	for _, p := range g.players {
+		p.Destroy()
 	}
 }
