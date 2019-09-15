@@ -25,7 +25,7 @@ func main() {
 
 	flag.Parse()
 	router := createRouter()
-	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("./scripts"))))
+	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("./dist"))))
 	http.Handle("/", router)
 	err := http.ListenAndServe(HOST+":"+PORT, nil)
 	if err != nil {

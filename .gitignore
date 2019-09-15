@@ -1,2 +1,4 @@
 /blasterTwister
 blaster-twister
+node_modules
+.eslintcache

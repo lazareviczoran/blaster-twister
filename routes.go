@@ -37,7 +37,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	http.ServeFile(w, r, "home.html")
+	http.ServeFile(w, r, "./frontend/html/home.html")
 }
 
 func createGame(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +95,7 @@ func joinGame(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if oldestGame == nil {
-		http.ServeFile(w, r, "unavailable.html")
+		http.ServeFile(w, r, "./frontend/html/unavailable.html")
 		return
 	}
 	http.Redirect(w, r, fmt.Sprintf("/g/%s", oldestGame.id), http.StatusSeeOther)
@@ -106,5 +106,5 @@ func serveGame(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	http.ServeFile(w, r, "game.html")
+	http.ServeFile(w, r, "./frontend/html/game.html")
 }
