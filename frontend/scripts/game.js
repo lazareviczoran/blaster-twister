@@ -55,8 +55,8 @@ window.addEventListener('load', () => {
       createOrMoveTriangle(id, p);
     });
   };
-  const drawWinner = (pId, actualPlayerId) => {
-    if (pId === actualPlayerId) {
+  const drawWinner = (winnerId, actualPlayerId) => {
+    if (winnerId === actualPlayerId) {
       alert('You won!! :)');
     } else {
       alert('You lost!! :(');
@@ -75,11 +75,11 @@ window.addEventListener('load', () => {
   ws.onmessage = (evt) => {
     const status = JSON.parse(evt.data);
     if (status.winner != null) {
-      drawWinner(status.winner);
+      drawWinner(status.winner, playerId);
     } else {
       const playerKeys = Object.keys(status.players);
-      if (!playerId) {
-        playerId = playerKeys.length === 1 ? playerKeys[0] : playerKeys[1];
+      if (playerId == null) {
+        playerId = parseInt(playerKeys[0], 10);
       }
       movePlayers(status.players);
     }

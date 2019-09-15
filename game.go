@@ -28,6 +28,7 @@ func (g *Game) run() {
 		select {
 		case player := <-g.register:
 			g.players[player.ID()] = player
+			player.BroadcastCurrentPosition()
 			if len(g.players) == 2 {
 				g.startGame()
 			}
