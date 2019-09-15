@@ -30,6 +30,7 @@ func (g *Game) run() {
 			g.players[player.ID()] = player
 			player.BroadcastCurrentPosition()
 			if len(g.players) == 2 {
+				g.startCountdown()
 				g.startGame()
 			}
 		case <-g.endGame:
@@ -82,6 +83,29 @@ func (g *Game) startGame() {
 
 	for _, p := range g.players {
 		go p.Move()
+	}
+}
+
+func (g *Game) startCountdown() {
+	countdownTicker := time.NewTicker(1000 * time.Millisecond)
+	defer countdownTicker.Stop()
+
+	counter := 3
+	for {
+		select {
+		case <-countdownTicker.C:
+			temp := make(map[string]interface{})
+			temp["countdown"] = counter
+			res, err := json.Marshal(&temp)
+			if err != nil {
+				log.Printf("Could not convert to JSON, %v", err)
+			}
+			g.sendToAll(res)
+			counter--
+			if counter < 0 {
+				return
+			}
+		}
 	}
 }
 

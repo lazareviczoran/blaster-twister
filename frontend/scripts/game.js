@@ -76,6 +76,8 @@ window.addEventListener('load', () => {
     const status = JSON.parse(evt.data);
     if (status.winner != null) {
       drawWinner(status.winner, playerId);
+    } else if (status.countdown != null) {
+      console.log('Game starts in ', status.countdown);
     } else {
       const playerKeys = Object.keys(status.players);
       if (playerId == null) {
