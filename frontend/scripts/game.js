@@ -3,6 +3,8 @@ import * as Paper from 'paper';
 const WIDTH = 300;
 const HEIGHT = 400;
 const SIDE_COUNT = 3;
+const WEBSOCKET_PROTOCOL = window.location.hostname === 'localhost' ? 'ws' : 'wss';
+const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${document.location.host}/ws`;
 
 window.addEventListener('load', () => {
   const playerPos = {};
@@ -61,7 +63,7 @@ window.addEventListener('load', () => {
     }
   };
   const gameId = document.location.pathname.substring(3);
-  let ws = new WebSocket(`wss://${document.location.host}/ws/${gameId}`);
+  let ws = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}`);
   let playerId;
   ws.onopen = () => {
     console.log('OPEN');
