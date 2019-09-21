@@ -3,10 +3,13 @@ const webpack = require('webpack');
 require('@babel/register');
 
 const config = {
-  entry: ['@babel/polyfill', './frontend/scripts/game.js'],
+  entry: {
+    game: './frontend/scripts/game.js',
+    lobby: './frontend/scripts/lobby.js',
+  },
   output: {
     path: `${__dirname}/dist`,
-    filename: 'game.js',
+    filename: '[name].js',
   },
   module: {
     rules: [

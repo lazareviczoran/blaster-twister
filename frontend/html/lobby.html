@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Blaster-Twister</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="/css/main.css" media="screen" />
+    <script type="text/javascript" src="/src/lobby.js"></script>
+  </head>
+  <body>
+    <div class="mt-5">
+      <div id="lobby">
+        <p id="lobby-message">Preparing game</p>
+        <div class="progress">
+            <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+      <div id="unsuccessful" class="d-none">
+        <p id="unsuccessful-message">No available games at the moment.</p>
+        <a id="retry" class="btn btn-primary">Try again</a>
+        <a id="back" class="btn btn-danger" href="/">Go back</a>
+      </div>
+    </div>
+  </body>
+</html>

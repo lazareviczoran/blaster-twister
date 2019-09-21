@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"sync"
@@ -14,6 +15,7 @@ import (
 type Game struct {
 	id        string
 	players   map[int]Player
+	lobby     chan int
 	register  chan Player
 	endGame   chan Player
 	broadcast chan []byte
@@ -68,6 +70,7 @@ func newGame(id string, height, width int) *Game {
 	return &Game{
 		id:        id,
 		broadcast: make(chan []byte),
+		lobby:     make(chan int),
 		register:  make(chan Player),
 		endGame:   make(chan Player),
 		players:   make(map[int]Player),
@@ -75,6 +78,58 @@ func newGame(id string, height, width int) *Game {
 		winner:    nil,
 		createdAt: time.Now(),
 		available: true,
+	}
+}
+
+func createGameAndWait() (string, error) {
+	gameID := randToken()
+	game := newGame(gameID, height, width)
+	activeGames[gameID] = game
+	go game.run()
+
+	timeoutTicker := time.NewTicker(time.Minute)
+	defer timeoutTicker.Stop()
+	joinedPlayers := 1
+
+	for {
+		select {
+		case <-game.lobby:
+			joinedPlayers++
+			if joinedPlayers == 2 {
+				game.available = false
+				return gameID, nil
+			}
+		case <-timeoutTicker.C:
+			delete(activeGames, gameID)
+			return "", errors.New("There are no active players to join")
+		}
+	}
+}
+
+func findAvailableGameAndJoin() (string, error) {
+	timeoutTicker := time.NewTicker(time.Minute)
+	countdownTicker := time.NewTicker(time.Second)
+	defer func() {
+		countdownTicker.Stop()
+		timeoutTicker.Stop()
+	}()
+	var oldestGame *Game
+
+	for {
+		select {
+		case <-countdownTicker.C:
+			for _, game := range activeGames {
+				if game.available && (oldestGame == nil || oldestGame.createdAt.After(game.createdAt)) {
+					oldestGame = game
+				}
+			}
+			if oldestGame != nil {
+				oldestGame.lobby <- 1
+				return oldestGame.id, nil
+			}
+		case <-timeoutTicker.C:
+			return "", errors.New("There are no active games")
+		}
 	}
 }
 
