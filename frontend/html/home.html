@@ -1,27 +1,25 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <title>Blaster-Twister</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <link rel="stylesheet" type="text/css" href="/css/main.css" media="screen" />
   </head>
-  <body style="text-align: center">
-    <table>
+  <body>
+    <table class="mt-5">
       <tr>
         <td>
           <p>To start a new game click on the button bellow.</p>
-          <form>
-            <div>
-              <a id="new" href="/new">New game</a>
-            </div>
-            <div>
-              <a id="join" href="/join">Join game</a>
-            </div>
-            <div>
-              or
-            </div>
-            <div>
-              <a id="single" href="/single-player">Play agains computer</a>
-            </div>
-          </form>
+          <div>
+            <a id="new" class="btn btn-primary" href="/new">New game</a>
+            <a id="join" class="btn btn-primary" href="/join">Join game</a>
+          </div>
+          <div>
+            or
+          </div>
+          <div>
+            <a id="single" class="btn btn-primary" href="/single-player">Play agains computer</a>
+          </div>
         </td>
         <td>
           <div id="output"></div>

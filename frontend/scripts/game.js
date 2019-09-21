@@ -5,73 +5,92 @@ const HEIGHT = 400;
 const SIDE_COUNT = 3;
 const WEBSOCKET_PROTOCOL = window.location.hostname === 'localhost' ? 'ws' : 'wss';
 const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${document.location.host}/ws`;
+const { Point, PointText, Path } = Paper;
+
+const playerPos = {};
+const currentPaths = {};
+const gameId = document.location.pathname.substring(3);
+const clientId = new Date().getTime();
+let playerId;
+let textItem;
+let ws;
+
+const createOrMoveTriangle = (pId, { x, y, rotation }) => {
+  const playerTriangle = playerPos[pId];
+  if (playerTriangle) {
+    playerTriangle.position = new Point(x, y);
+    playerTriangle.rotation = rotation + 90;
+  } else {
+    const strokeColor = pId === '0' ? 'purple' : 'aliceblue';
+    const fillColor = pId === '0' ? 'skyblue' : 'yellow';
+    const triangle = new Path.RegularPolygon({
+      center: [x, y],
+      sides: SIDE_COUNT,
+      radius: 5,
+      fillColor,
+      strokeColor,
+      applyMatrix: false,
+    });
+    triangle.rotation = rotation + 90;
+    playerPos[pId] = triangle;
+  }
+};
+const markFieldAsUsed = (pId, { x, y, trace }) => {
+  const playerPath = currentPaths[pId];
+  if (trace) {
+    if (playerPath) {
+      playerPath.add(new Point(x, y));
+    } else {
+      const path = new Path();
+      path.strokeColor = pId === '0' ? 'green' : 'red';
+      path.add(new Point(x, y));
+      currentPaths[pId] = path;
+    }
+  } else if (playerPath) {
+    currentPaths[pId] = null;
+  }
+};
+const movePlayers = (players) => {
+  Object.entries(players).forEach((entry) => {
+    const [id, p] = entry;
+    markFieldAsUsed(id, p);
+    createOrMoveTriangle(id, p);
+  });
+};
+const createMessage = (content) => {
+  const text = new PointText(new Point(0, 0));
+  text.visible = false;
+  text.content = content;
+  text.fontSize = 20;
+  const itemSize = text.handleBounds;
+  text.remove();
+  return new PointText({
+    point: [WIDTH / 2 - Math.round(itemSize.width / 2), HEIGHT / 2],
+    content,
+    fillColor: 'white',
+    fontSize: 20,
+  });
+};
+const drawWinner = (winnerId, actualPlayerId) => {
+  let content;
+  if (winnerId === actualPlayerId) {
+    content = 'You won!! :)';
+  } else {
+    content = `Player ${winnerId + 1} won!`;
+  }
+  createMessage(content);
+};
 
 window.addEventListener('load', () => {
-  const playerPos = {};
-  const currentPaths = {};
   const canvas = document.getElementById('canvas');
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   Paper.setup(canvas);
-  const createOrMoveTriangle = (pId, { x, y, rotation }) => {
-    const playerTriangle = playerPos[pId];
-    if (playerTriangle) {
-      playerTriangle.position = new Paper.Point(x, y);
-      playerTriangle.rotation = rotation + 90;
-    } else {
-      const strokeColor = pId === '0' ? 'purple' : 'aliceblue';
-      const fillColor = pId === '0' ? 'skyblue' : 'yellow';
-      const triangle = new Paper.Path.RegularPolygon({
-        center: [x, y],
-        sides: SIDE_COUNT,
-        radius: 5,
-        fillColor,
-        strokeColor,
-        applyMatrix: false,
-      });
-      triangle.rotation = rotation + 90;
-      playerPos[pId] = triangle;
-    }
-  };
-  const markFieldAsUsed = (pId, { x, y, trace }) => {
-    const playerPath = currentPaths[pId];
-    if (trace) {
-      if (playerPath) {
-        playerPath.add(new Paper.Point(x, y));
-      } else {
-        const path = new Paper.Path();
-        path.strokeColor = pId === '0' ? 'green' : 'red';
-        path.add(new Paper.Point(x, y));
-        currentPaths[pId] = path;
-      }
-    } else if (playerPath) {
-      currentPaths[pId] = null;
-    }
-  };
-  const movePlayers = (players) => {
-    Object.entries(players).forEach((entry) => {
-      const [id, p] = entry;
-      markFieldAsUsed(id, p);
-      createOrMoveTriangle(id, p);
-    });
-  };
-  const drawWinner = (winnerId, actualPlayerId) => {
-    if (winnerId === actualPlayerId) {
-      alert('You won!! :)');
-    } else {
-      alert('You lost!! :(');
-    }
-  };
-  const gameId = document.location.pathname.substring(3);
-  const clientId = new Date().getTime();
-  let ws = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}`);
-  let playerId;
+  ws = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}`);
   ws.onopen = () => {
-    console.log('OPEN');
     ws.send(JSON.stringify({ clientId: clientId.toString() }));
   };
   ws.onclose = () => {
-    console.log('CLOSE');
     ws = null;
   };
   ws.onmessage = (evt) => {
@@ -79,7 +98,15 @@ window.addEventListener('load', () => {
     if (status.winner != null) {
       drawWinner(status.winner, playerId);
     } else if (status.countdown != null) {
-      console.log('Game starts in ', status.countdown);
+      const content = `Game starts in ${status.countdown}`;
+      if (!textItem) {
+        textItem = createMessage(content);
+      } else if (status.countdown) {
+        textItem.content = content;
+      } else {
+        textItem.remove();
+        textItem = null;
+      }
     } else {
       const playerKeys = Object.keys(status.players);
       if (playerId == null) {
@@ -92,6 +119,7 @@ window.addEventListener('load', () => {
     }
   };
   ws.onerror = (evt) => {
+    // eslint-disable-next-line no-console
     console.log(`ERROR: ${evt.data}`);
   };
   document.onkeydown = (event) => {
