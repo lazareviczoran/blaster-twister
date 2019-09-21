@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"strconv"
 	"sync"
 	"time"
 
@@ -38,6 +39,15 @@ type Human struct {
 // ID returns the players Id
 func (h *Human) ID() int {
 	return h.id
+}
+
+// ClientID returns the id obtained from the WS client
+func (h *Human) ClientID() int {
+	return h.clientID
+}
+
+func (h *Human) setClientID(id int) {
+	h.clientID = id
 }
 
 // Game returns the pointer to Game
@@ -84,8 +94,14 @@ func (h *Human) readPump() {
 		}
 		if event["dir"] == "down" {
 			h.StartRotation(event["key"])
-		} else {
+		} else if event["dir"] == "up" {
 			h.StopRotation()
+		} else if event["clientId"] != "" {
+			clientID, err := strconv.Atoi(event["clientId"])
+			if err != nil {
+				log.Printf("Cannot convert %s to int", event["clientId"])
+			}
+			h.setClientID(clientID)
 		}
 	}
 }
@@ -142,8 +158,11 @@ func (h *Human) Destroy() {
 	delete(h.game.players, h.id)
 }
 
-// InitPosition initializes the players position and broadcasts it to the clients
-func (h *Human) InitPosition() {
+// InitPlayer initializes the players position and opens read/write channels
+func (h *Human) InitPlayer() {
+	go h.writePump()
+	go h.readPump()
+
 	startX := width / 2
 	startY := height/5 + h.id*3*height/5
 	h.currentPosition.Store("x", startX)
@@ -151,7 +170,6 @@ func (h *Human) InitPosition() {
 	h.currentPosition.Store("rotation", getStartRotation())
 	h.currentPosition.Store("trace", false)
 	h.game.board.fields[startX][startY].setUsed(h)
-	h.BroadcastCurrentPosition()
 }
 
 // StartRotation creates a new ticker and updates
@@ -188,8 +206,10 @@ func (h *Human) StopRotation() {
 // to all clients
 func (h *Human) BroadcastCurrentPosition() {
 	temp := make(map[string]interface{})
+	playerPositionMap := syncMapToMap(h.currentPosition)
+	playerPositionMap["clientId"] = h.ClientID()
 	playersStatusMap := make(map[int]interface{})
-	playersStatusMap[h.id] = syncMapToMap(h.currentPosition)
+	playersStatusMap[h.id] = playerPositionMap
 	temp["players"] = playersStatusMap
 
 	res, err := json.Marshal(&temp)

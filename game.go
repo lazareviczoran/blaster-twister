@@ -28,12 +28,15 @@ func (g *Game) run() {
 		select {
 		case player := <-g.register:
 			g.players[player.ID()] = player
-			player.BroadcastCurrentPosition()
+			for _, p := range g.players {
+				p.BroadcastCurrentPosition()
+			}
 			if len(g.players) == 2 {
 				g.startCountdown()
 				g.startGame()
 			}
-		case <-g.endGame:
+		case player := <-g.endGame:
+			player.SetAlive(false)
 			var winner Player
 			alivePlayers := 0
 			for _, p := range g.players {
@@ -124,39 +127,29 @@ func connectPlayer(game *Game, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		initPlayer(game, id, conn)
+		createPlayer(game, id, conn)
 	}
 }
 
 func connectBot(game *Game) {
 	id := len(game.players)
 	if id < 2 {
-		initPlayer(game, id, nil)
+		createPlayer(game, id, nil)
 	}
 }
 
-func initPlayer(game *Game, id int, conn *websocket.Conn) {
+func createPlayer(game *Game, id int, conn *websocket.Conn) {
 	currentPosition := sync.Map{}
 	send := make(chan []byte, 256)
 	var player Player
 	if conn != nil {
-		human := &Human{PlayerData{id, game, send, &currentPosition, nil, true}, conn}
+		human := &Human{PlayerData{id, -1, game, send, &currentPosition, nil, true}, conn}
 		player = human
-		go human.writePump()
-		go human.readPump()
 	} else {
-		bot := &Bot{PlayerData{id, game, send, &currentPosition, nil, true}}
+		bot := &Bot{PlayerData{id, -1, game, send, &currentPosition, nil, true}}
 		player = bot
-		go func() {
-			for {
-				select {
-				case <-bot.send:
-					// listen to bots send
-				}
-			}
-		}()
 	}
-	player.InitPosition()
+	player.InitPlayer()
 	game.register <- player
 }
 

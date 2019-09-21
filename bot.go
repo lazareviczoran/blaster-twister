@@ -23,6 +23,12 @@ func (b *Bot) ID() int {
 	return b.id
 }
 
+// ClientID returns the id obtained from the WS client,
+// in this case we return -1 since the bot is not a WS client
+func (b *Bot) ClientID() int {
+	return b.clientID
+}
+
 // Game returns the pointer to Game
 func (b *Bot) Game() *Game {
 	return b.game
@@ -57,8 +63,20 @@ func (b *Bot) Destroy() {
 	delete(b.game.players, b.id)
 }
 
-// InitPosition initializes the players position and broadcasts it to the clients
-func (b *Bot) InitPosition() {
+// InitPlayer initializes the players position
+func (b *Bot) InitPlayer() {
+	go func() {
+		for {
+			select {
+			case <-b.send:
+				// listen to bots send
+				if !b.IsAlive() || b.game.winner != nil {
+					return
+				}
+			}
+		}
+	}()
+
 	startX := width / 2
 	startY := height/5 + b.id*3*height/5
 	b.currentPosition.Store("x", startX)
@@ -66,7 +84,6 @@ func (b *Bot) InitPosition() {
 	b.currentPosition.Store("rotation", getStartRotation())
 	b.currentPosition.Store("trace", false)
 	b.game.board.fields[startX][startY].setUsed(b)
-	b.BroadcastCurrentPosition()
 }
 
 // StartRotation creates a new ticker and updates

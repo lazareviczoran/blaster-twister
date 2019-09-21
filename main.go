@@ -26,6 +26,7 @@ func main() {
 	flag.Parse()
 	router := createRouter()
 	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("./dist"))))
+	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./frontend/css"))))
 	http.Handle("/", router)
 	err := http.ListenAndServe(HOST+":"+PORT, nil)
 	if err != nil {

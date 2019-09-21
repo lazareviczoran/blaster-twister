@@ -63,10 +63,12 @@ window.addEventListener('load', () => {
     }
   };
   const gameId = document.location.pathname.substring(3);
+  const clientId = new Date().getTime();
   let ws = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}`);
   let playerId;
   ws.onopen = () => {
     console.log('OPEN');
+    ws.send(JSON.stringify({ clientId: clientId.toString() }));
   };
   ws.onclose = () => {
     console.log('CLOSE');
@@ -81,7 +83,10 @@ window.addEventListener('load', () => {
     } else {
       const playerKeys = Object.keys(status.players);
       if (playerId == null) {
-        playerId = parseInt(playerKeys[0], 10);
+        const myPlayer = Object.values(status.players).find((p) => p.clientId === clientId);
+        if (myPlayer) {
+          playerId = parseInt(playerKeys[0], 10);
+        }
       }
       movePlayers(status.players);
     }

@@ -1,20 +1,32 @@
 <!DOCTYPE html>
 <html>
-<body style="text-align: center">
-  <table>
-    <tr>
-      <td valign="top" width="50%">
-        <p>To start a new game click on the button bellow.</p>
-        <form>
-          <a id="new" href="/new">New game</a>
-          <a id="join" href="/join">Join game</a>
-        </form>
-      </td>
-      <td valign="top" width="50%">
-        <div id="output"></div>
-      </td>
-    </tr>
-  </table>
-</body>
-
+  <head>
+    <link rel="stylesheet" type="text/css" href="/css/main.css" media="screen" />
+  </head>
+  <body style="text-align: center">
+    <table>
+      <tr>
+        <td>
+          <p>To start a new game click on the button bellow.</p>
+          <form>
+            <div>
+              <a id="new" href="/new">New game</a>
+            </div>
+            <div>
+              <a id="join" href="/join">Join game</a>
+            </div>
+            <div>
+              or
+            </div>
+            <div>
+              <a id="single" href="/single-player">Play agains computer</a>
+            </div>
+          </form>
+        </td>
+        <td>
+          <div id="output"></div>
+        </td>
+      </tr>
+    </table>
+  </body>
 </html>

@@ -15,11 +15,12 @@ const (
 
 // Player contains the info about the current position and actions for moving
 type Player interface {
-	InitPosition()
+	InitPlayer()
 	Move()
 	StartRotation(direction string)
 	StopRotation()
 	ID() int
+	ClientID() int
 	Game() *Game
 	CurrentPosition() *sync.Map
 	IsAlive() bool
@@ -32,6 +33,7 @@ type Player interface {
 // PlayerData contains the info about player and the players position
 type PlayerData struct {
 	id              int
+	clientID        int
 	game            *Game
 	send            chan []byte
 	currentPosition *sync.Map
@@ -77,11 +79,10 @@ func moveBresenham(p Player, x0 int, y0 int, rotationRad float64) {
 			if trace.(bool) {
 				p.Game().board.fields[x0][y0].setUsed(p)
 			}
-			if p.Game().winner == nil {
+			if p.IsAlive() && p.Game().winner == nil {
 				p.BroadcastCurrentPosition()
 			}
 		} else {
-			p.SetAlive(false)
 			p.Game().endGame <- p
 			return
 		}
