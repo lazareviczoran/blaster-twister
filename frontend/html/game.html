@@ -7,6 +7,36 @@
     <script type="text/javascript" src="/src/game.js"></script>
   </head>
   <body>
-    <canvas id="canvas" class="mt-5"></canvas>
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-12 mb-2 mt-2">
+          <img id="rocket1" src="/img/rocket1.png" width="30px" />
+          Player 1 (<span id="player0"></span>)
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-12 mb-2 mt-2">
+          <img id="rocket2" src="/img/rocket2.png" width="30px" />
+          Player 2 (<span id="player1"></span>)
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-12">
+          <canvas id="canvas"></canvas>
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-12 mb-2 mt-2">
+          <button id="left" class="btn btn-light">&#60; L</button>
+          <button id="right" class="btn btn-light">R &#62;</button>
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-12">
+          <a id="back" href="/" class="btn btn-primary d-none">Play again</a>
+        </div>
+      </div>
+      <p class="mt-3">To move, use the left/right buttons on your keyboard, also you can use the L/R buttons</p>
+    </div>
   </body>
 </html>

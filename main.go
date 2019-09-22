@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-const height int = 400
-const width int = 300
-
 func main() {
 	HOST := ""
 	if os.Getenv("GO_ENV") == "development" {
@@ -27,6 +24,7 @@ func main() {
 	router := createRouter()
 	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("./dist"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./frontend/css"))))
+	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./frontend/img"))))
 	http.Handle("/", router)
 	err := http.ListenAndServe(HOST+":"+PORT, nil)
 	if err != nil {

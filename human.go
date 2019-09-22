@@ -232,15 +232,19 @@ func (h *Human) Move() {
 	for {
 		select {
 		case <-mainTicker.C:
-			if !h.alive || h.game.winner != nil {
-				visitedTicker.Stop()
-				return
+			if !h.game.started {
+				h.BroadcastCurrentPosition()
+			} else {
+				if !h.alive || h.game.winner != nil {
+					visitedTicker.Stop()
+					return
+				}
+				curX, _ := h.currentPosition.Load("x")
+				curY, _ := h.currentPosition.Load("y")
+				curRotation, _ := h.currentPosition.Load("rotation")
+				rotationRad := float64(curRotation.(int)) * math.Pi / 180
+				moveBresenham(h, curX.(int), curY.(int), rotationRad)
 			}
-			curX, _ := h.currentPosition.Load("x")
-			curY, _ := h.currentPosition.Load("y")
-			curRotation, _ := h.currentPosition.Load("rotation")
-			rotationRad := float64(curRotation.(int)) * math.Pi / 180
-			moveBresenham(h, curX.(int), curY.(int), rotationRad)
 		case <-visitedTicker.C:
 			trace, _ := h.currentPosition.Load("trace")
 			h.currentPosition.Store("trace", !trace.(bool))

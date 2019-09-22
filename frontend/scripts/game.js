@@ -1,18 +1,22 @@
 import * as Paper from 'paper';
 
-const WIDTH = 300;
-const HEIGHT = 400;
-const SIDE_COUNT = 3;
+const WIDTH = 500;
+const HEIGHT = 600;
 const WEBSOCKET_PROTOCOL = window.location.hostname === 'localhost' ? 'ws' : 'wss';
-const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${document.location.host}/ws`;
-const { Point, PointText, Path } = Paper;
+const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${window.location.host}/ws`;
+const {
+  Point, PointText, Path, Raster, Layer,
+} = Paper;
 
 const playerPos = {};
 const currentPaths = {};
-const gameId = document.location.pathname.substring(3);
+const gameId = window.location.pathname.substring(3);
 const clientId = new Date().getTime();
 let playerId;
 let textItem;
+let pathLayer;
+let iconLayer;
+let messageLayer;
 let ws;
 
 const createOrMoveTriangle = (pId, { x, y, rotation }) => {
@@ -21,18 +25,13 @@ const createOrMoveTriangle = (pId, { x, y, rotation }) => {
     playerTriangle.position = new Point(x, y);
     playerTriangle.rotation = rotation + 90;
   } else {
-    const strokeColor = pId === '0' ? 'purple' : 'aliceblue';
-    const fillColor = pId === '0' ? 'skyblue' : 'yellow';
-    const triangle = new Path.RegularPolygon({
-      center: [x, y],
-      sides: SIDE_COUNT,
-      radius: 5,
-      fillColor,
-      strokeColor,
-      applyMatrix: false,
-    });
-    triangle.rotation = rotation + 90;
-    playerPos[pId] = triangle;
+    const icon = pId === '0' ? 'rocket1' : 'rocket2';
+    const playerIcon = new Raster(icon);
+    playerIcon.position = new Point(x, y);
+    playerIcon.rotation = rotation + 90;
+    playerIcon.scale(0.15);
+    iconLayer.addChild(playerIcon);
+    playerPos[pId] = playerIcon;
   }
 };
 const markFieldAsUsed = (pId, { x, y, trace }) => {
@@ -43,7 +42,9 @@ const markFieldAsUsed = (pId, { x, y, trace }) => {
     } else {
       const path = new Path();
       path.strokeColor = pId === '0' ? 'green' : 'red';
+      path.strokeWidth = 2;
       path.add(new Point(x, y));
+      pathLayer.addChild(path);
       currentPaths[pId] = path;
     }
   } else if (playerPath) {
@@ -78,7 +79,9 @@ const drawWinner = (winnerId, actualPlayerId) => {
   } else {
     content = `Player ${winnerId + 1} won!`;
   }
-  createMessage(content);
+  const messageItem = createMessage(content);
+  messageLayer.addChild(messageItem);
+  document.getElementById('back').classList.remove('d-none');
 };
 
 window.addEventListener('load', () => {
@@ -86,6 +89,10 @@ window.addEventListener('load', () => {
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   Paper.setup(canvas);
+  pathLayer = new Layer();
+  iconLayer = new Layer();
+  messageLayer = new Layer();
+
   ws = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}`);
   ws.onopen = () => {
     ws.send(JSON.stringify({ clientId: clientId.toString() }));
@@ -101,6 +108,7 @@ window.addEventListener('load', () => {
       const content = `Game starts in ${status.countdown}`;
       if (!textItem) {
         textItem = createMessage(content);
+        messageLayer.addChild(textItem);
       } else if (status.countdown) {
         textItem.content = content;
       } else {
@@ -109,11 +117,18 @@ window.addEventListener('load', () => {
       }
     } else {
       const playerKeys = Object.keys(status.players);
+      const playerSpan = document.getElementById(`player${playerKeys[0]}`);
+      let playerText = 'Opponent';
       if (playerId == null) {
         const myPlayer = Object.values(status.players).find((p) => p.clientId === clientId);
         if (myPlayer) {
           playerId = parseInt(playerKeys[0], 10);
+          playerText = 'Me';
+          playerSpan.innerHTML = playerText;
         }
+      }
+      if (playerSpan.innerHTML === '') {
+        playerSpan.innerHTML = playerText;
       }
       movePlayers(status.players);
     }
@@ -137,6 +152,24 @@ window.addEventListener('load', () => {
       if (event.keyCode === 37) {
         ws.send(JSON.stringify({ dir: 'up', key: 'left' }));
       } else if (event.keyCode === 39) {
+        ws.send(JSON.stringify({ dir: 'up', key: 'right' }));
+      }
+    }
+  };
+  document.onmousedown = (event) => {
+    if (ws) {
+      if (event.target.id === 'left') {
+        ws.send(JSON.stringify({ dir: 'down', key: 'left' }));
+      } else if (event.target.id === 'right') {
+        ws.send(JSON.stringify({ dir: 'down', key: 'right' }));
+      }
+    }
+  };
+  document.onmouseup = (event) => {
+    if (ws) {
+      if (event.target.id === 'left') {
+        ws.send(JSON.stringify({ dir: 'up', key: 'left' }));
+      } else if (event.target.id === 'right') {
         ws.send(JSON.stringify({ dir: 'up', key: 'right' }));
       }
     }

@@ -11,6 +11,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const width int = 500
+const height int = 600
+
 // Game holds the connections to the players
 type Game struct {
 	id        string
@@ -23,6 +26,7 @@ type Game struct {
 	winner    Player
 	createdAt time.Time
 	available bool
+	started   bool
 }
 
 func (g *Game) run() {
@@ -30,11 +34,7 @@ func (g *Game) run() {
 		select {
 		case player := <-g.register:
 			g.players[player.ID()] = player
-			for _, p := range g.players {
-				p.BroadcastCurrentPosition()
-			}
 			if len(g.players) == 2 {
-				g.startCountdown()
 				g.startGame()
 			}
 		case player := <-g.endGame:
@@ -78,6 +78,7 @@ func newGame(id string, height, width int) *Game {
 		winner:    nil,
 		createdAt: time.Now(),
 		available: true,
+		started:   false,
 	}
 }
 
@@ -134,14 +135,15 @@ func findAvailableGameAndJoin() (string, error) {
 }
 
 func (g *Game) startGame() {
-	g.available = false
 	startTime := time.Now()
-	// g.broadcast <- []byte(fmt.Sprintf("game started at %s", startTime))
 	log.Printf("game started at %v", startTime)
 
 	for _, p := range g.players {
+		p.BroadcastCurrentPosition()
 		go p.Move()
 	}
+
+	g.startCountdown()
 }
 
 func (g *Game) startCountdown() {
@@ -161,6 +163,7 @@ func (g *Game) startCountdown() {
 			g.sendToAll(res)
 			counter--
 			if counter < 0 {
+				g.started = true
 				return
 			}
 		}

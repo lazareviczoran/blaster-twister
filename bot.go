@@ -144,41 +144,45 @@ func (b *Bot) Move() {
 	for {
 		select {
 		case <-mainTicker.C:
-			if !b.alive || b.game.winner != nil {
-				visitedTicker.Stop()
-				return
-			}
-			curX, _ := b.currentPosition.Load("x")
-			curY, _ := b.currentPosition.Load("y")
-			curRotation, _ := b.currentPosition.Load("rotation")
-			curRotationDir, _ := b.currentPosition.Load("rotationDir")
-
-			angle := b.findAngleToFarthestIntersection(curX.(int), curY.(int))
-			diff := angle - curRotation.(int)
-			if diff > 0 {
-				direction := directionRight
-				if diff > 180 {
-					direction = directionLeft
-				}
-				if curRotationDir != direction {
-					b.StopRotation()
-					b.StartRotation(direction)
-				}
-			} else if diff < 0 {
-				direction := directionLeft
-				if diff < -180 {
-					direction = directionRight
-				}
-				if curRotationDir != direction {
-					b.StopRotation()
-					b.StartRotation(direction)
-				}
+			if !b.game.started {
+				b.BroadcastCurrentPosition()
 			} else {
-				b.StopRotation()
-			}
+				if !b.alive || b.game.winner != nil {
+					visitedTicker.Stop()
+					return
+				}
+				curX, _ := b.currentPosition.Load("x")
+				curY, _ := b.currentPosition.Load("y")
+				curRotation, _ := b.currentPosition.Load("rotation")
+				curRotationDir, _ := b.currentPosition.Load("rotationDir")
 
-			rotationRad := float64(curRotation.(int)) * math.Pi / 180
-			moveBresenham(b, curX.(int), curY.(int), rotationRad)
+				angle := b.findAngleToFarthestIntersection(curX.(int), curY.(int))
+				diff := angle - curRotation.(int)
+				if diff > 0 {
+					direction := directionRight
+					if diff > 180 {
+						direction = directionLeft
+					}
+					if curRotationDir != direction {
+						b.StopRotation()
+						b.StartRotation(direction)
+					}
+				} else if diff < 0 {
+					direction := directionLeft
+					if diff < -180 {
+						direction = directionRight
+					}
+					if curRotationDir != direction {
+						b.StopRotation()
+						b.StartRotation(direction)
+					}
+				} else {
+					b.StopRotation()
+				}
+
+				rotationRad := float64(curRotation.(int)) * math.Pi / 180
+				moveBresenham(b, curX.(int), curY.(int), rotationRad)
+			}
 		case <-visitedTicker.C:
 			trace, _ := b.currentPosition.Load("trace")
 			b.currentPosition.Store("trace", !trace.(bool))

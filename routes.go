@@ -22,7 +22,7 @@ func createRouter() *mux.Router {
 		key := vars["gameID"]
 
 		game := activeGames[key]
-		if game != nil && game.available {
+		if game != nil && !game.started {
 			connectPlayer(game, w, r)
 			return
 		}
@@ -126,7 +126,7 @@ func serveGame(w http.ResponseWriter, r *http.Request) {
 	key := vars["gameID"]
 
 	game := activeGames[key]
-	if game == nil || !game.available {
+	if game == nil || game.started {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}

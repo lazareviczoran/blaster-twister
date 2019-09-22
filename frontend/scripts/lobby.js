@@ -24,13 +24,17 @@ window.addEventListener('load', () => {
     .then((response) => {
       clearInterval(intervalId);
       if (response.status === 200) {
-        const responseObj = response.json();
-        window.location = `${BASE_URL}/g/${responseObj.gameId}`;
-      } if (response.status === 422) {
+        return response.json();
+      }
+      if (response.status === 422) {
         document.getElementById('unsuccessful').classList.remove('d-none');
         progressContainer.classList.add('d-none');
-      } else {
-        throw new Error('Something went wrong on api server!');
+        return null;
+      }
+      throw new Error('Something went wrong on api server!');
+    }).then((responseObj) => {
+      if (responseObj && responseObj.gameId) {
+        window.location = `${BASE_URL}/g/${responseObj.gameId}`;
       }
     }).catch((error) => {
       console.error(error);
