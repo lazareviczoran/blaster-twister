@@ -174,4 +174,22 @@ window.addEventListener('load', () => {
       }
     }
   };
+  document.ontouchstart = (event) => {
+    if (ws) {
+      if (event.target.id === 'left') {
+        ws.send(JSON.stringify({ dir: 'down', key: 'left' }));
+      } else if (event.target.id === 'right') {
+        ws.send(JSON.stringify({ dir: 'down', key: 'right' }));
+      }
+    }
+  };
+  document.ontouchend = (event) => {
+    if (ws) {
+      if (event.target.id === 'left') {
+        ws.send(JSON.stringify({ dir: 'up', key: 'left' }));
+      } else if (event.target.id === 'right') {
+        ws.send(JSON.stringify({ dir: 'up', key: 'right' }));
+      }
+    }
+  };
 });
