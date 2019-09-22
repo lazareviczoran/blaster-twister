@@ -199,12 +199,13 @@ func connectBot(game *Game) {
 func createPlayer(game *Game, id int, conn *websocket.Conn) {
 	currentPosition := sync.Map{}
 	send := make(chan []byte, 256)
+	rotationChannel := make(chan RotationData)
 	var player Player
 	if conn != nil {
-		human := &Human{PlayerData{id, -1, game, send, &currentPosition, nil, true}, conn}
+		human := &Human{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, nil, true}, conn}
 		player = human
 	} else {
-		bot := &Bot{PlayerData{id, -1, game, send, &currentPosition, nil, true}}
+		bot := &Bot{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, nil, true}}
 		player = bot
 	}
 	player.InitPlayer()

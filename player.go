@@ -11,6 +11,8 @@ const (
 
 	directionLeft  = "left"
 	directionRight = "right"
+	directionUp    = "up"
+	directionDown  = "down"
 )
 
 // Player contains the info about the current position and actions for moving
@@ -30,6 +32,12 @@ type Player interface {
 	Destroy()
 }
 
+// RotationData struct is used to send rotation data through a channel
+type RotationData struct {
+	dir string
+	key string
+}
+
 // PlayerData contains the info about player and the players position
 type PlayerData struct {
 	id              int
@@ -37,6 +45,7 @@ type PlayerData struct {
 	game            *Game
 	send            chan []byte
 	currentPosition *sync.Map
+	rotationChannel chan RotationData
 	rotationTicker  *time.Ticker
 	alive           bool
 }

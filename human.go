@@ -92,10 +92,10 @@ func (h *Human) readPump() {
 		if err := json.Unmarshal(message, &event); err != nil {
 			log.Printf("unmarshal error: %v", err)
 		}
-		if event["dir"] == "down" {
-			h.StartRotation(event["key"])
-		} else if event["dir"] == "up" {
-			h.StopRotation()
+		if event["dir"] == directionDown {
+			h.rotationChannel <- RotationData{dir: event["dir"], key: event["key"]}
+		} else if event["dir"] == directionUp {
+			h.rotationChannel <- RotationData{dir: event["dir"]}
 		} else if event["clientId"] != "" {
 			clientID, err := strconv.Atoi(event["clientId"])
 			if err != nil {
@@ -244,6 +244,13 @@ func (h *Human) Move() {
 				curRotation, _ := h.currentPosition.Load("rotation")
 				rotationRad := float64(curRotation.(int)) * math.Pi / 180
 				moveBresenham(h, curX.(int), curY.(int), rotationRad)
+			}
+		case rotationData := <-h.rotationChannel:
+			if rotationData.dir == directionDown {
+				h.StopRotation()
+				h.StartRotation(rotationData.key)
+			} else if rotationData.dir == directionUp {
+				h.StopRotation()
 			}
 		case <-visitedTicker.C:
 			trace, _ := h.currentPosition.Load("trace")

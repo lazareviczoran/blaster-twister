@@ -157,31 +157,38 @@ func (b *Bot) Move() {
 				curRotationDir, _ := b.currentPosition.Load("rotationDir")
 
 				angle := b.findAngleToFarthestIntersection(curX.(int), curY.(int))
-				diff := angle - curRotation.(int)
-				if diff > 0 {
-					direction := directionRight
-					if diff > 180 {
-						direction = directionLeft
+				go func() {
+					diff := angle - curRotation.(int)
+					if diff > 0 {
+						direction := directionRight
+						if diff > 180 {
+							direction = directionLeft
+						}
+						if curRotationDir != direction {
+							b.rotationChannel <- RotationData{dir: directionDown, key: direction}
+						}
+					} else if diff < 0 {
+						direction := directionLeft
+						if diff < -180 {
+							direction = directionRight
+						}
+						if curRotationDir != direction {
+							b.rotationChannel <- RotationData{dir: directionDown, key: direction}
+						}
+					} else {
+						b.rotationChannel <- RotationData{dir: directionUp}
 					}
-					if curRotationDir != direction {
-						b.StopRotation()
-						b.StartRotation(direction)
-					}
-				} else if diff < 0 {
-					direction := directionLeft
-					if diff < -180 {
-						direction = directionRight
-					}
-					if curRotationDir != direction {
-						b.StopRotation()
-						b.StartRotation(direction)
-					}
-				} else {
-					b.StopRotation()
-				}
+				}()
 
 				rotationRad := float64(curRotation.(int)) * math.Pi / 180
 				moveBresenham(b, curX.(int), curY.(int), rotationRad)
+			}
+		case rotationData := <-b.rotationChannel:
+			if rotationData.dir == directionDown {
+				b.StopRotation()
+				b.StartRotation(rotationData.key)
+			} else if rotationData.dir == directionUp {
+				b.StopRotation()
 			}
 		case <-visitedTicker.C:
 			trace, _ := b.currentPosition.Load("trace")
