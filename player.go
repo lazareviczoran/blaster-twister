@@ -46,6 +46,7 @@ type PlayerData struct {
 	send            chan []byte
 	currentPosition *sync.Map
 	rotationChannel chan RotationData
+	stopRotation    chan bool
 	rotationTicker  *time.Ticker
 	alive           bool
 }

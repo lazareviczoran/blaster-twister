@@ -189,6 +189,8 @@ func (h *Human) StartRotation(direction string) {
 					h.currentPosition.Store("rotation", (currRotation.(int)+355)%360)
 				}
 				h.currentPosition.Store("rotationDir", direction)
+			case <-h.stopRotation:
+				return
 			}
 		}
 	}()
@@ -197,6 +199,7 @@ func (h *Human) StartRotation(direction string) {
 // StopRotation stops the rotation ticker
 func (h *Human) StopRotation() {
 	if h.rotationTicker != nil {
+		h.stopRotation <- true
 		h.rotationTicker.Stop()
 		h.rotationTicker = nil
 		h.currentPosition.Store("rotationDir", nil)

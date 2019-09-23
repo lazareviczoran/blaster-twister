@@ -103,6 +103,8 @@ func (b *Bot) StartRotation(direction string) {
 					b.currentPosition.Store("rotation", (currRotation.(int)+355)%360)
 				}
 				b.currentPosition.Store("rotationDir", direction)
+			case <-b.stopRotation:
+				return
 			}
 		}
 	}()
@@ -111,6 +113,7 @@ func (b *Bot) StartRotation(direction string) {
 // StopRotation stops the rotation ticker
 func (b *Bot) StopRotation() {
 	if b.rotationTicker != nil {
+		b.stopRotation <- true
 		b.rotationTicker.Stop()
 		b.rotationTicker = nil
 		b.currentPosition.Store("rotationDir", nil)
