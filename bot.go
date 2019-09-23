@@ -89,8 +89,9 @@ func (b *Bot) InitPlayer() {
 // StartRotation creates a new ticker and updates
 // the players rotation angle on each tick
 func (b *Bot) StartRotation(direction string) {
+	b.StopRotation()
+	b.rotationTicker = time.NewTicker(30 * time.Millisecond)
 	go func() {
-		b.rotationTicker = time.NewTicker(30 * time.Millisecond)
 		for {
 			select {
 			case <-b.rotationTicker.C:
@@ -185,7 +186,6 @@ func (b *Bot) Move() {
 			}
 		case rotationData := <-b.rotationChannel:
 			if rotationData.dir == directionDown {
-				b.StopRotation()
 				b.StartRotation(rotationData.key)
 			} else if rotationData.dir == directionUp {
 				b.StopRotation()

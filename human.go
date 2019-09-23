@@ -175,8 +175,9 @@ func (h *Human) InitPlayer() {
 // StartRotation creates a new ticker and updates
 // the players rotation angle on each tick
 func (h *Human) StartRotation(direction string) {
+	h.StopRotation()
+	h.rotationTicker = time.NewTicker(30 * time.Millisecond)
 	go func() {
-		h.rotationTicker = time.NewTicker(30 * time.Millisecond)
 		for {
 			select {
 			case <-h.rotationTicker.C:
@@ -247,7 +248,6 @@ func (h *Human) Move() {
 			}
 		case rotationData := <-h.rotationChannel:
 			if rotationData.dir == directionDown {
-				h.StopRotation()
 				h.StartRotation(rotationData.key)
 			} else if rotationData.dir == directionUp {
 				h.StopRotation()
