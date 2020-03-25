@@ -2,6 +2,7 @@ SHELL := /bin/bash
 
 install:
 	go get
+	npm install
 
 start:
 	make build
