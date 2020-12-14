@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	fps = 15
+	fps = 30
 
 	directionLeft  = "left"
 	directionRight = "right"
