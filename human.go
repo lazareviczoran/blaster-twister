@@ -92,10 +92,8 @@ func (h *Human) readPump() {
 		if err := json.Unmarshal(message, &event); err != nil {
 			log.Printf("unmarshal error: %v", err)
 		}
-		if event["dir"] == directionDown {
+		if event["dir"] == directionDown || event["dir"] == directionUp {
 			h.rotationChannel <- RotationData{dir: event["dir"], key: event["key"]}
-		} else if event["dir"] == directionUp {
-			h.rotationChannel <- RotationData{dir: event["dir"]}
 		} else if event["clientId"] != "" {
 			clientID, err := strconv.Atoi(event["clientId"])
 			if err != nil {
@@ -210,10 +208,8 @@ func (h *Human) StopRotation() {
 // when both directions are pressed, ignoring release event for the first rotation
 func (h *Human) StopRotationWs(direction *string) {
 	if h.rotationTicker != nil {
-		log.Printf("stopping dir %v", direction)
 		dir, _ := h.currentPosition.Load("rotationDir")
-		log.Printf("curr dir %v", dir)
-		if direction == nil || dir == direction {
+		if direction == nil || dir == *direction {
 			h.stopRotation <- true
 			h.rotationTicker.Stop()
 			h.rotationTicker = nil
