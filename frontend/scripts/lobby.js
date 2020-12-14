@@ -1,7 +1,9 @@
 const BASE_URL = window.location.origin;
-const isNew = window.location.pathname.match(/new/);
-const message = isNew ? 'Waiting for players to join' : 'Searching for available games';
-const unsuccessfulMessage = isNew ? 'No available players at the moment.' : 'No available games at the moment.';
+const message = 'Waiting for players to join';
+const unsuccessfulMessage = 'No available players at the moment.';
+const WEBSOCKET_PROTOCOL = window.location.hostname === 'localhost' ? 'ws' : 'wss';
+const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${window.location.host}/ws`;
+let ws;
 
 window.addEventListener('load', () => {
   const progressContainer = document.getElementById('lobby');
@@ -9,32 +11,37 @@ window.addEventListener('load', () => {
   let progressStatus = 0;
   document.getElementById('lobby-message').innerHTML = message;
   document.getElementById('unsuccessful-message').innerHTML = unsuccessfulMessage;
-  document.getElementById('retry').setAttribute('href', isNew ? '/new' : '/join');
+  document.getElementById('retry').setAttribute('href', '/join');
+
+  setTimeout(() => {
+    ws = new WebSocket(`${WEBSOCKET_BASE_URL}/lobby`);
+    ws.onopen = () => {};
+    ws.onclose = () => {
+      ws = null;
+    };
+    ws.onmessage = (evt) => {
+      if (!evt.data) {
+        return;
+      }
+      if (evt.data === 'ping') {
+        ws.send('success');
+      } else {
+        window.location = `${BASE_URL}/g/${evt.data}`;
+      }
+    };
+    // eslint-disable-next-line no-console
+    ws.onerror = console.error;
+  }, 1200);
 
   const intervalId = setInterval(() => {
     progressStatus += 1;
     if (progressStatus > 60) {
       clearInterval(intervalId);
+      document.getElementById('unsuccessful').classList.remove('d-none');
+      progressContainer.classList.add('d-none');
+      ws = null;
     }
     progress.setAttribute('aria-valuenow', `${progressStatus}`);
     progress.style.width = `${Math.round(progressStatus / 0.6)}%`;
   }, 1000);
-
-  fetch(`${BASE_URL}/api/${window.location.pathname.substring(1)}`)
-    .then((response) => {
-      clearInterval(intervalId);
-      if (response.status === 200) {
-        return response.json();
-      }
-      if (response.status === 422) {
-        document.getElementById('unsuccessful').classList.remove('d-none');
-        progressContainer.classList.add('d-none');
-        return null;
-      }
-      throw new Error('Something went wrong on api server!');
-    }).then((responseObj) => {
-      if (responseObj && responseObj.gameId) {
-        window.location = `${BASE_URL}/g/${responseObj.gameId}`;
-      }
-    }).catch(console.error);
 });

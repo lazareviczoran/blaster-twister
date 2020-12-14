@@ -19,6 +19,7 @@ func main() {
 		PORT = "8080"
 	}
 	rand.Seed(time.Now().UnixNano())
+	initLobby()
 
 	flag.Parse()
 	router := createRouter()
