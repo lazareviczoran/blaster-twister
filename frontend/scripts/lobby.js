@@ -36,7 +36,5 @@ window.addEventListener('load', () => {
       if (responseObj && responseObj.gameId) {
         window.location = `${BASE_URL}/g/${responseObj.gameId}`;
       }
-    }).catch((error) => {
-      console.error(error);
-    });
+    }).catch(console.error);
 });

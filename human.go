@@ -206,6 +206,22 @@ func (h *Human) StopRotation() {
 	}
 }
 
+// StopRotation stops the rotation ticker
+// when both directions are pressed, ignoring release event for the first rotation
+func (h *Human) StopRotationWs(direction *string) {
+	if h.rotationTicker != nil {
+		log.Printf("stopping dir %v", direction)
+		dir, _ := h.currentPosition.Load("rotationDir")
+		log.Printf("curr dir %v", dir)
+		if direction == nil || dir == direction {
+			h.stopRotation <- true
+			h.rotationTicker.Stop()
+			h.rotationTicker = nil
+			h.currentPosition.Store("rotationDir", nil)
+		}
+	}
+}
+
 // BroadcastCurrentPosition sends the players current position
 // to all clients
 func (h *Human) BroadcastCurrentPosition() {
@@ -253,7 +269,7 @@ func (h *Human) Move() {
 			if rotationData.dir == directionDown {
 				h.StartRotation(rotationData.key)
 			} else if rotationData.dir == directionUp {
-				h.StopRotation()
+				h.StopRotationWs(&rotationData.key)
 			}
 		case <-visitedTicker.C:
 			trace, _ := h.currentPosition.Load("trace")

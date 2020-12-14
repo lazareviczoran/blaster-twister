@@ -6,6 +6,8 @@ const LEFT = 'left';
 const RIGHT = 'right';
 const UP = 'up';
 const DOWN = 'down';
+const LEFT_KEY = 'ArrowLeft';
+const RIGHT_KEY = 'ArrowRight';
 const WEBSOCKET_PROTOCOL = window.location.hostname === 'localhost' ? 'ws' : 'wss';
 const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${window.location.host}/ws`;
 const {
@@ -144,19 +146,19 @@ window.addEventListener('load', () => {
   document.onkeydown = (event) => {
     if (ws) {
       if (event.repeat) { return; }
-      if (event.keyCode === 37) {
-        ws.send(JSON.stringify({ dir: 'down', key: 'left' }));
-      } else if (event.keyCode === 39) {
-        ws.send(JSON.stringify({ dir: 'down', key: 'right' }));
+      if (event.key === LEFT_KEY) {
+        ws.send(JSON.stringify({ dir: DOWN, key: LEFT }));
+      } else if (event.key === RIGHT_KEY) {
+        ws.send(JSON.stringify({ dir: DOWN, key: RIGHT }));
       }
     }
   };
   document.onkeyup = (event) => {
     if (ws) {
-      if (event.keyCode === 37) {
-        ws.send(JSON.stringify({ dir: 'up', key: 'left' }));
-      } else if (event.keyCode === 39) {
-        ws.send(JSON.stringify({ dir: 'up', key: 'right' }));
+      if (event.key === LEFT_KEY) {
+        ws.send(JSON.stringify({ dir: UP, key: LEFT }));
+      } else if (event.key === RIGHT_KEY) {
+        ws.send(JSON.stringify({ dir: UP, key: RIGHT }));
       }
     }
   };
@@ -168,28 +170,28 @@ window.addEventListener('load', () => {
       ws.send(JSON.stringify({ dir, key }));
     }
   };
-  document.getElementById('left').addEventListener('mousedown', (e) => {
+  document.getElementById(LEFT).addEventListener('mousedown', (e) => {
     sendRotationEvent(e, DOWN, LEFT);
   });
-  document.getElementById('left').addEventListener('mouseup', (e) => {
+  document.getElementById(LEFT).addEventListener('mouseup', (e) => {
     sendRotationEvent(e, UP, LEFT);
   });
-  document.getElementById('right').addEventListener('mousedown', (e) => {
+  document.getElementById(RIGHT).addEventListener('mousedown', (e) => {
     sendRotationEvent(e, DOWN, RIGHT);
   });
-  document.getElementById('right').addEventListener('mouseup', (e) => {
+  document.getElementById(RIGHT).addEventListener('mouseup', (e) => {
     sendRotationEvent(e, UP, RIGHT);
   });
-  document.getElementById('left').addEventListener('touchstart', (e) => {
+  document.getElementById(LEFT).addEventListener('touchstart', (e) => {
     sendRotationEvent(e, DOWN, LEFT);
   });
-  document.getElementById('left').addEventListener('touchend', (e) => {
+  document.getElementById(LEFT).addEventListener('touchend', (e) => {
     sendRotationEvent(e, UP, LEFT);
   });
-  document.getElementById('right').addEventListener('touchstart', (e) => {
+  document.getElementById(RIGHT).addEventListener('touchstart', (e) => {
     sendRotationEvent(e, DOWN, RIGHT);
   });
-  document.getElementById('right').addEventListener('touchend', (e) => {
+  document.getElementById(RIGHT).addEventListener('touchend', (e) => {
     sendRotationEvent(e, UP, RIGHT);
   });
 });
