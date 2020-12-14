@@ -30,8 +30,16 @@ type Game struct {
 }
 
 func (g *Game) run() {
+	timeoutTicker := time.NewTicker(3 * time.Minute)
+	defer timeoutTicker.Stop()
+	joinedPlayers := 0
 	for {
 		select {
+		case <-g.lobby:
+			joinedPlayers++
+			if joinedPlayers == 2 {
+				g.available = false
+			}
 		case player := <-g.register:
 			g.players[player.ID()] = player
 			if len(g.players) == 2 {
@@ -57,11 +65,16 @@ func (g *Game) run() {
 				}
 				g.sendToAll(res)
 				g.destroyPlayers()
+				g.stop()
 				delete(activeGames, g.id)
 				return
 			}
 		case message := <-g.broadcast:
 			g.sendToAll(message)
+		case <-timeoutTicker.C:
+			log.Printf("There are no active players to join, closing game %s", g.id)
+			g.stop()
+			delete(activeGames, g.id)
 		}
 	}
 }
@@ -82,29 +95,13 @@ func newGame(id string, height, width int) *Game {
 	}
 }
 
-func createGameAndWait() (string, error) {
+func createGame() (string, error) {
 	gameID := randToken()
 	game := newGame(gameID, height, width)
 	activeGames[gameID] = game
 	go game.run()
 
-	timeoutTicker := time.NewTicker(time.Minute)
-	defer timeoutTicker.Stop()
-	joinedPlayers := 1
-
-	for {
-		select {
-		case <-game.lobby:
-			joinedPlayers++
-			if joinedPlayers == 2 {
-				game.available = false
-				return gameID, nil
-			}
-		case <-timeoutTicker.C:
-			delete(activeGames, gameID)
-			return "", errors.New("There are no active players to join")
-		}
-	}
+	return gameID, nil
 }
 
 func findAvailableGameAndJoin() (string, error) {
@@ -203,11 +200,9 @@ func createPlayer(game *Game, id int, conn *websocket.Conn) {
 	stopRotation := make(chan bool)
 	var player Player
 	if conn != nil {
-		human := &Human{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, stopRotation, nil, true}, conn}
-		player = human
+		player = &Human{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, stopRotation, nil, true}, conn}
 	} else {
-		bot := &Bot{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, stopRotation, nil, true}}
-		player = bot
+		player = &Bot{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, stopRotation, nil, true}}
 	}
 	player.InitPlayer()
 	game.register <- player
@@ -217,4 +212,11 @@ func (g *Game) destroyPlayers() {
 	for _, p := range g.players {
 		p.Destroy()
 	}
+}
+
+func (g *Game) stop() {
+	close(g.lobby)
+	close(g.register)
+	close(g.endGame)
+	close(g.broadcast)
 }

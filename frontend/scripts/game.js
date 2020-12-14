@@ -9,7 +9,7 @@ const DOWN = 'down';
 const LEFT_KEY = 'ArrowLeft';
 const RIGHT_KEY = 'ArrowRight';
 const WEBSOCKET_PROTOCOL = window.location.hostname === 'localhost' ? 'ws' : 'wss';
-const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${window.location.host}/ws`;
+const WEBSOCKET_BASE_URL = `${WEBSOCKET_PROTOCOL}://${window.location.host}/ws/game`;
 const {
   Point, PointText, Path, Raster, Layer,
 } = Paper;
@@ -139,10 +139,9 @@ window.addEventListener('load', () => {
       movePlayers(status.players);
     }
   };
-  ws.onerror = (evt) => {
-    // eslint-disable-next-line no-console
-    console.log(`ERROR: ${evt.data}`);
-  };
+  // eslint-disable-next-line no-console
+  ws.onerror = console.error;
+
   document.onkeydown = (event) => {
     if (ws) {
       if (event.repeat) { return; }
