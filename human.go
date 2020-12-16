@@ -33,7 +33,8 @@ var upgrader = websocket.Upgrader{
 // Human represents the websocket player
 type Human struct {
 	PlayerData
-	conn *websocket.Conn
+	mainConn *websocket.Conn
+	cmdConn  *websocket.Conn
 }
 
 // ID returns the players Id
@@ -76,12 +77,43 @@ func (h *Human) SetAlive(alive bool) {
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-func (h *Human) readPump() {
-	h.conn.SetReadLimit(maxMessageSize)
-	h.conn.SetReadDeadline(time.Now().Add(pongWait))
-	h.conn.SetPongHandler(func(string) error { h.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+func (h *Human) MainReadPump() {
+	h.mainConn.SetReadLimit(maxMessageSize)
+	h.mainConn.SetReadDeadline(time.Now().Add(pongWait))
+	h.mainConn.SetPongHandler(func(string) error { h.mainConn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := h.conn.ReadMessage()
+		_, message, err := h.mainConn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v", err)
+			}
+			break
+		}
+		var event map[string]string
+		if err := json.Unmarshal(message, &event); err != nil {
+			log.Printf("unmarshal error: %v", err)
+		}
+		if event["clientId"] != "" {
+			clientID, err := strconv.Atoi(event["clientId"])
+			if err != nil {
+				log.Printf("Cannot convert %s to int", event["clientId"])
+			}
+			h.setClientID(clientID)
+		}
+	}
+}
+
+// readPump pumps messages from the websocket connection to the hub.
+//
+// The application runs readPump in a per-connection goroutine. The application
+// ensures that there is at most one reader on a connection by executing all
+// reads from this goroutine.
+func (h *Human) CmdReadPump() {
+	h.cmdConn.SetReadLimit(maxMessageSize)
+	h.cmdConn.SetReadDeadline(time.Now().Add(pongWait))
+	h.cmdConn.SetPongHandler(func(string) error { h.cmdConn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	for {
+		_, message, err := h.cmdConn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
@@ -94,12 +126,6 @@ func (h *Human) readPump() {
 		}
 		if event["dir"] == directionDown || event["dir"] == directionUp {
 			h.rotationChannel <- RotationData{dir: event["dir"], key: event["key"]}
-		} else if event["clientId"] != "" {
-			clientID, err := strconv.Atoi(event["clientId"])
-			if err != nil {
-				log.Printf("Cannot convert %s to int", event["clientId"])
-			}
-			h.setClientID(clientID)
 		}
 	}
 }
@@ -109,23 +135,23 @@ func (h *Human) readPump() {
 // A goroutine running writePump is started for each connection. The
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
-func (h *Human) writePump() {
+func (h *Human) MainWritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		h.conn.Close()
+		h.mainConn.Close()
 	}()
 	for {
 		select {
 		case message, ok := <-h.send:
-			h.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			h.mainConn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
-				h.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				h.mainConn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
-			w, err := h.conn.NextWriter(websocket.TextMessage)
+			w, err := h.mainConn.NextWriter(websocket.TextMessage)
 			if err != nil {
 				return
 			}
@@ -135,8 +161,8 @@ func (h *Human) writePump() {
 				return
 			}
 		case <-ticker.C:
-			h.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := h.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			h.mainConn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := h.mainConn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
 		}
@@ -158,8 +184,8 @@ func (h *Human) Destroy() {
 
 // InitPlayer initializes the players position and opens read/write channels
 func (h *Human) InitPlayer() {
-	go h.writePump()
-	go h.readPump()
+	go h.MainWritePump()
+	go h.MainReadPump()
 
 	startX := width / 2
 	startY := height/5 + h.id*3*height/5
@@ -168,6 +194,12 @@ func (h *Human) InitPlayer() {
 	h.currentPosition.Store("rotation", getStartRotation())
 	h.currentPosition.Store("trace", false)
 	h.game.board.fields[startX][startY].setUsed(h)
+}
+
+func (h *Human) AttachWriteConn(conn *websocket.Conn) {
+	log.Printf("Attaching connection to %d", h.ClientID())
+	h.cmdConn = conn
+	go h.CmdReadPump()
 }
 
 // StartRotation creates a new ticker and updates
