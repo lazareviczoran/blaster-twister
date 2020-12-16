@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -25,6 +26,41 @@ func createRouter() *mux.Router {
 			connectPlayer(game, w, r)
 			return
 		}
+	})
+	router.HandleFunc("/ws/game/{gameID}/{clientID}/{playerID}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		key := vars["gameID"]
+		playerID, err := strconv.Atoi(vars["playerID"])
+		if err != nil {
+			log.Printf("Couldn't parse playerID %s", vars["playerID"])
+			return
+		}
+		clientID, err := strconv.Atoi(vars["clientID"])
+		if err != nil {
+			log.Printf("Couldn't parse clientID %s", vars["clientID"])
+			return
+		}
+
+		game := activeGames[key]
+		if game != nil {
+			player := game.players[playerID]
+			if player != nil {
+				if player.ClientID() != clientID {
+					log.Printf("Client IDs don't match (%d != %d)", player.ClientID(), clientID)
+					return
+				}
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					log.Print("upgrade:", err)
+					return
+				}
+				player.(*Human).AttachWriteConn(conn)
+				return
+			} else {
+				log.Printf("Couldn't find player %d in game %s)", playerID, key)
+			}
+		}
+		http.Error(w, "Not found", http.StatusNotFound)
 	})
 	router.HandleFunc("/ws/lobby", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)

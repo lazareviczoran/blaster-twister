@@ -200,7 +200,7 @@ func createPlayer(game *Game, id int, conn *websocket.Conn) {
 	stopRotation := make(chan bool)
 	var player Player
 	if conn != nil {
-		player = &Human{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, stopRotation, nil, true}, conn}
+		player = &Human{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, stopRotation, nil, true}, conn, nil}
 	} else {
 		player = &Bot{PlayerData{id, -1, game, send, &currentPosition, rotationChannel, stopRotation, nil, true}}
 	}

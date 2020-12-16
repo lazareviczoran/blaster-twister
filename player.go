@@ -93,7 +93,9 @@ func moveBresenham(p Player, x0 int, y0 int, rotationRad float64) {
 				p.BroadcastCurrentPosition()
 			}
 		} else {
-			p.Game().endGame <- p
+			if p.Game().endGame != nil {
+				p.Game().endGame <- p
+			}
 			return
 		}
 	}

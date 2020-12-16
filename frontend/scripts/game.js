@@ -23,7 +23,8 @@ let textItem;
 let pathLayer;
 let iconLayer;
 let messageLayer;
-let ws;
+let mainWs;
+let cmdWs;
 
 const createOrMoveTriangle = (pId, { x, y, rotation }) => {
   const playerTriangle = playerPos[pId];
@@ -90,6 +91,21 @@ const drawWinner = (winnerId, actualPlayerId) => {
   document.getElementById('back').classList.remove('d-none');
 };
 
+const openCmdWs = (myId) => {
+  cmdWs = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}/${clientId}/${myId}`);
+  cmdWs.onopen = () => {};
+  cmdWs.onclose = () => {
+    cmdWs = null;
+  };
+  cmdWs.onmessage = (evt) => {
+    const status = JSON.parse(evt.data);
+    // eslint-disable-next-line no-console
+    console.log(status);
+  };
+  // eslint-disable-next-line no-console
+  cmdWs.onerror = console.error;
+};
+
 window.addEventListener('load', () => {
   const canvas = document.getElementById('canvas');
   canvas.width = WIDTH;
@@ -99,14 +115,14 @@ window.addEventListener('load', () => {
   iconLayer = new Layer();
   messageLayer = new Layer();
 
-  ws = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}`);
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ clientId: clientId.toString() }));
+  mainWs = new WebSocket(`${WEBSOCKET_BASE_URL}/${gameId}`);
+  mainWs.onopen = () => {
+    mainWs.send(JSON.stringify({ clientId: clientId.toString() }));
   };
-  ws.onclose = () => {
-    ws = null;
+  mainWs.onclose = () => {
+    mainWs = null;
   };
-  ws.onmessage = (evt) => {
+  mainWs.onmessage = (evt) => {
     const status = JSON.parse(evt.data);
     if (status.winner != null) {
       drawWinner(status.winner, playerId);
@@ -129,6 +145,7 @@ window.addEventListener('load', () => {
         const myPlayer = Object.values(status.players).find((p) => p.clientId === clientId);
         if (myPlayer) {
           playerId = parseInt(playerKeys[0], 10);
+          openCmdWs(playerId);
           playerText = 'Me';
           playerSpan.innerHTML = playerText;
         }
@@ -140,24 +157,24 @@ window.addEventListener('load', () => {
     }
   };
   // eslint-disable-next-line no-console
-  ws.onerror = console.error;
+  mainWs.onerror = console.error;
 
   document.onkeydown = (event) => {
-    if (ws) {
+    if (cmdWs) {
       if (event.repeat) { return; }
       if (event.key === LEFT_KEY) {
-        ws.send(JSON.stringify({ dir: DOWN, key: LEFT }));
+        cmdWs.send(JSON.stringify({ dir: DOWN, key: LEFT }));
       } else if (event.key === RIGHT_KEY) {
-        ws.send(JSON.stringify({ dir: DOWN, key: RIGHT }));
+        cmdWs.send(JSON.stringify({ dir: DOWN, key: RIGHT }));
       }
     }
   };
   document.onkeyup = (event) => {
-    if (ws) {
+    if (cmdWs) {
       if (event.key === LEFT_KEY) {
-        ws.send(JSON.stringify({ dir: UP, key: LEFT }));
+        cmdWs.send(JSON.stringify({ dir: UP, key: LEFT }));
       } else if (event.key === RIGHT_KEY) {
-        ws.send(JSON.stringify({ dir: UP, key: RIGHT }));
+        cmdWs.send(JSON.stringify({ dir: UP, key: RIGHT }));
       }
     }
   };
@@ -165,8 +182,8 @@ window.addEventListener('load', () => {
     if (event) {
       event.preventDefault();
     }
-    if (ws) {
-      ws.send(JSON.stringify({ dir, key }));
+    if (cmdWs) {
+      cmdWs.send(JSON.stringify({ dir, key }));
     }
   };
   document.getElementById(LEFT).addEventListener('mousedown', (e) => {
